@@ -98,39 +98,6 @@ var SimpleDbLayer = declare( null, {
 
   },
 
-/*
-  filters: { 
-    type: 'and|or',
-    fields: {
-      name: {
-        type: 'is',
-        value: 'Tony'
-      },
-      surname: {
-        type: 'startWith',
-        value: 'Mob',
-      },
-      age: {
-        type: 'lt|lte|gt|gte',
-        value: 30,
-      },
-      tags: {
-        type: 'contain',
-        value: 'cool',
-      },
-      surname: {
-        type: 'startWith',
-        value: 'Mob',
-      },
-    },
-    sort: [
-      { name: -1 },
-      { age: 1 }
-    ]
-  }
-*/
-
-
   select: function( filters, options, cb ){
 
     // Usual drill

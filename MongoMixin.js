@@ -54,49 +54,6 @@ var MongoMixin = declare( null, {
   },
 
 
-/*
-  filters: { 
-
-    type: 'and|or',
-
-    ranges: {
-      from: 10,
-      to: 20,
-      limit: 10
-    },
-
-
-    fields: {
-      name: {
-        type: 'is',
-        value: 'Tony'
-      },
-      surname: {
-        type: 'startWith',
-        value: 'Mob',
-      },
-      age: {
-        type: 'lt|lte|gt|gte',
-        value: 30,
-      },
-      tags: {
-        type: 'contain',
-        value: 'cool',
-      },
-      surname: {
-        type: 'startWith',
-        value: 'Mob',
-      },
-    },
-    sort: [
-      { name: -1 },
-      { age: 1 }
-    ]
-  }
-
-*/
-
-
   _makeMongoParameters: function( filters ){
 
     var selector = {};
