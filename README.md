@@ -19,7 +19,7 @@ For MongoDB, you can use MongoWrapper that does just that for you:
 
     var mw = require('mongowrapper');
     mw.connect('mongodb://localhost/hotplate', {}, function( err, db ){
-
+     // ...
     });
 
 
@@ -71,7 +71,7 @@ Note how `people` is an object which will be tied to the table/collection `peopl
 
 You can pass the connection variable `db` variable to the DbLayer constructor if you like:
 
-        var logEntries = new DbLayer( 'logger', {  entry: true, datestamp: true }, someOtherDb );
+    var logEntries = new DbLayer( 'logger', {  entry: true, datestamp: true }, someOtherDb );
 
 In this case, logEntries will be tied to the table `logger`, but queries will be directed to `someOtherDb` rather than `db`.
 
