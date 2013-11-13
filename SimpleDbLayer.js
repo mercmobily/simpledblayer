@@ -51,6 +51,8 @@ var SimpleDbLayer = declare( null, {
 
 
   sanitizeRanges: function( ranges ){
+    var self = this
+
     var saneRanges = {};
     if( ! this.hardLimitOnQueries ) var hardLimitOnQueries = 0;
   
@@ -61,37 +63,59 @@ var SimpleDbLayer = declare( null, {
     if( typeof( ranges ) === 'object' && ranges !== null ){
 
       // Copy values over to saneRanges
-      saneRanges.from = ranges.from || 0;
-      saneRanges.to = ranges.to || 0;
-      saneRanges.limit = ranges.limit || 0;
+      saneRanges.from = ranges.from || -1;
+      saneRanges.to = ranges.to || -1;
+      saneRanges.limit = ranges.limit || -1;
 
+      var sr = saneRanges;
 
-      // Calculate `to` or `limit` (depending on which one is missing)
+      // Sorry, no shortcuts here for now. Code will be optimised later
+      // (maybe)
 
-      // If `rangeFrom` and `rangeTo` are set, and limit isn't, then `limit`
-      // will be set
-      if( saneRanges.from != 0 && saneRanges.to != 0 && saneRanges.limit == 0 ){
-        saneRanges.limit =  saneRanges.to - saneRanges.from + 1;
-      // If `rangeFrom` and `limit` are set, and rangeTo isn't, then `to`
-      // will be set
-      } else if( saneRanges.from != 0 && saneRanges.limit != 0 && saneRanges.to == 0 ){
-        saneRanges.to =  saneRanges.limit + saneRanges.from - 1;
+      // Case: Only "limit" is set
+      // - Set "from" and "to"
+      if( sr.from === -1 && sr.to === -1 && sr.limit !== -1 ){
+        sr.from = 0;
+        sr.to = sr.limit - 1;
+       
+      // Case: Only "from" is set
+      // - Set "to" and "limit"
+      } else if( sr.from !== -1 && sr.to === -1 && sr.limit === -1 ){
+        sr.limit =  0;
+        sr.to  = 0;
+ 
+      // Case: Only "to" is set
+      // - Set "from" and "limit"
+      } else if( sr.from === -1 && sr.to !== -1 && sr.limit === -1 ){
+        sr.from = 0;
+        sr.limit =  saneRanges.to - saneRanges.from + 1;
+ 
+      // Case: Only "from" and "limit" are set
+      // - Set "to"
+      } else if( sr.from !== -1 && sr.to === -1 && sr.limit !== -1 ){
+        sr.to =  sr.from + sr.limit - 1;
+
+      // Case: Only "from" and "to" are set
+      // - Set "limit"
+      } else if( sr.from !== -1 && sr.to !== -1 && sr.limit === -1 ){
+        sr.limit =  saneRanges.to - saneRanges.from + 1;
+
+      // Case: Only "to" and "limit" are set
+      // - Set "from"
+      } else if( sr.from === -1 && sr.to !== -1 && sr.limit !== -1 ){
+        sr.from = 0;
       }
 
-      // Sanity checks on limit (cannot go over 
 
-      // If `limit` makes it go over `rangeTo`, then resize `limit`
-      if(  saneRanges.limit != 0 && saneRanges.from + saneRanges.limit - 1 > saneRanges.to ){
-        saneRanges.limit =  saneRanges.to - saneRanges.from + 1;
+      // Make sure "limit" never goes over
+      if(  sr.limit != 0 && sr.from + sr.limit - 1 > sr.to ){
+        sr.limit =  sr.to - sr.from + 1;
       }
 
-      // Respect hard limit on number of returned records, limiting `limit` (if set) or
-      // imposing it (if not set)
-      if( hardLimitOnQueries !== 0 ){
-        if( saneRanges.limit === 0 || saneRanges.limit > self.hardLimitOnQueries ){
-          saneRanges.limit = hardLimitOnQueries;
-        }
+      if( self.hardLimitOnQueries && ( sr.limit === 0 || sr.limit > self.hardLimitOnQueries ) ){
+          sr.limit = hardLimitOnQueries;
       }
+
     }
 
     return saneRanges;
