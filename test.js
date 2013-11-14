@@ -111,8 +111,6 @@ var clearAndPopulateTestCollection = function( g, cb ){
   })
 }
 
-
-
 exports.get = function( getDbInfo, closeDb ){
   
   var tests;
@@ -135,9 +133,7 @@ exports.get = function( getDbInfo, closeDb ){
         g.driver.DriverMixin = DriverMixin;
 
         test.done();
-
       });
-
     });
   }
 
