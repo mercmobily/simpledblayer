@@ -8,7 +8,6 @@ SimpleDbLayer is a module that will allow you to connect and query a DB server. 
 * It has full cursor support
 * It is schema-free. You only need to tell it what fields are there -- schema definition is 100% not dealt with
 * It is written with very simple, Object Oriented code using [simpleDeclare](https://github.com/mercmobily/simpleDeclare)
-* 
 
 # How to use it
 
@@ -89,11 +88,11 @@ The second parameter is optional. If you pass it, and `returnRecord` is true, th
 
 For normal queries:
 
-    people.select( {}, { useCursor: false , delete: false }, function( err, data ){
+    people.select( {}, { useCursor: false , delete: false }, function( err, data, total ){
 
 For cursor queries:
 
-    people.select( {}, { useCursor: true , delete: false }, function( err, cursor ){
+    people.select( {}, { useCursor: true , delete: false }, function( err, cursor, total ){
 
 Normal queries will just return the data as an array of values. Cursor queries will return an object with the methods next(), rewind() and close(). For example:
 
@@ -110,8 +109,6 @@ Normal queries will just return the data as an array of values. Cursor queries w
         } 
       }
     }
-   
-If the `delete` field is on (it's off by default), the driver will _delete_ any fetched record. For straight selects, it will delete all records _before_ calling your callback. For cursor-driven selects, it will delete records as they are fetched with `cursor.next()` 
 
 This is what the search filter can look like:
 
@@ -125,21 +122,28 @@ This is what the search filter can look like:
   
       conditions: {
   
-        and: {
-  
-          name: {
+        and: [
+          { 
+            field: 'name',
             type: 'startsWith',
             value: 'To'
-          }
-        },
-  
-        or: {
-  
-          age: {
-            type: 'gt',
-            value: 27,
           },
-        },
+        ],
+  
+        or: [
+  
+          {
+            field: 'age',
+            type: 'lt',
+            value: 12 
+          },
+          {
+            field: 'age',
+            type: 'gt',
+            value: 65
+          },
+
+        ],
       },
   
       sort: {
@@ -149,10 +153,14 @@ This is what the search filter can look like:
   
     };
 
-Ranges can have `from`, `to` and `limit` set. If `limit` or `to` are missing, they are automatically worked out.
-For sorting, -1 means from smaller to bigger and 1 means from bigger to smaller.
+Conditions are grouped into `and` and `or` ones. The db query will be the list of `and` conditions _linked with `and`_ to the list of `or` conditions. See it as `A and B and C and (D or E of F )` where `A`, `B` and `C` are the `and` conditions, and `D`, `E`, `F` are the `or` conditions.
 
-Conditions are grouped into `and` and `or` ones. The query will be a flat list of conditions, where `and` ones will typically take precedence. The possibly `types` are: `lt` `lte` `gt` `gte` `is` `startWith` `startsWith` `contain` `contains` `endsWith` `endWith``
+The possibly comparison types` are: `lt` `lte` `gt` `gte` `is` `startWith` `startsWith` `contain` `contains` `endsWith` `endWith``
+
+If the `delete` field is on (it's off by default), the driver will _delete_ any fetched record. For straight selects, it will delete all records _before_ calling your callback. For cursor-driven selects, it will delete records as they are fetched with `cursor.next()` 
+
+Ranges can have `from`, `to` and `limit` set. If `fields are missing, the others are automatically worked out.
+For sorting, -1 means from smaller to bigger and 1 means from bigger to smaller.
 
 
 ## Querying: delete
@@ -167,7 +175,7 @@ Please note that if the `multi` flag is on, then it will delete multiple records
 
 This is a simple update:
 
-    people.update( { conditions: { and: { name: { type: 'startsWith', value: 'D' }  } } }, { name: 'Changed' }, { deleteUnsetFields: true, multi: true }, function( err, num ){
+    people.update( { conditions: { and: [ name: { type: 'startsWith', value: 'D' }  ] } }, { name: 'Changed' }, { deleteUnsetFields: true, multi: true }, function( err, num ){
 
 If `multi` is set to `true`, all records matching the search will be updated. Otherwise, only one record will be updated.
 If `deleteUnsetFields` is set to `true`, then any fields that are defined as valid fields for the collection, but ar _not_ defined in the update object, will be zapped. So, if your record is `{ name: 'Tony', age: 37 }` and you run an update with `deleteUnsetFields` set to true and with the update record set as `{ name: 'Tony2' }`, the new record will become `{ name: 'Tony2 }`. If `deleteUnsetFields` is set to `false`, the resul would be `{name: Tony2, age: 37 }` (unset records are not zapped).

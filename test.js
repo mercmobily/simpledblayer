@@ -32,39 +32,34 @@ function i( v ){
   console.log( require( 'util' ).inspect( v, { depth: 10 } ) );
 }
 
-var compareCollections = function( a, b ){
+var compareCollections = function( test, a, b ){
+
 
 
   try {
-  var a1 = [], a2, a3;
-  a.forEach( function( item ){
-    a1.push( JSON.stringify( item ) );
-  });
-  a2 = a1.sort();
-  a3 = JSON.stringify( a2 );
+    var a1 = [], a2, a3;
+    a.forEach( function( item ){
+      a1.push( JSON.stringify( item ) );
+    });
+    a2 = a1.sort();
+    a3 = JSON.stringify( a2 );
 
-  var b1 = [], b2, b3;
-  b.forEach( function( item ){
-    b1.push( JSON.stringify( item ) );
-  });
-  b2 = b1.sort();
-  b3 = JSON.stringify( b2 );
+    var b1 = [], b2, b3;
+    b.forEach( function( item ){
+      b1.push( JSON.stringify( item ) );
+    });
+    b2 = b1.sort();
+    b3 = JSON.stringify( b2 );
   } catch ( e ){
-    console.log("Comparison failed:");
-    console.log( e );
-    return false;
+    test.fail( a, b, "Comparison failed", "recordset comparison" );
   }
 
-  var res = ( a3 == b3 && a.total == b.total );
+  var res = ( a3 == b3 );
 
   if( ! res ){
-    console.log("Records differ:");
-    i( a );
-    console.log("Differs to:");
-    i( b );
+    test.fail( a, b, "Record sets do not match", "recordset comparison" );
   }
-
-  return res;
+  
 }
 
 var populateCollection = function( data, collection, cb ){
@@ -162,6 +157,7 @@ exports.get = function( getDbInfo, closeDb ){
 
     startup: startup,
 
+
     "create constructors and layers": function( test ){
       var self = this;
 
@@ -204,6 +200,7 @@ exports.get = function( getDbInfo, closeDb ){
 
     "insert with returnRecord": function( test ){
 
+      
       g.people.delete( { }, { multi: true }, function( err ){
         test.ifError( err );
 
@@ -238,31 +235,16 @@ exports.get = function( getDbInfo, closeDb ){
 
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
-          g.people.select( { conditions: { and: [ { field: 'name', type: 'is', value: 'Tony' }, { field: 'surname', type: 'is', value: 'Mobily' }, { field: 'age', type: 'is', value: 37 } ] } }, function( err, results ){ 
+          g.people.select( { conditions: { and: [ { field: 'name', type: 'is', value: 'Tony' }, { field: 'surname', type: 'is', value: 'Mobily' }, { field: 'age', type: 'is', value: 37 } ] } }, function( err, results, total ){ 
 
           test.ifError( err );
 
           var r = [ { name: 'Tony',      surname: 'Mobily',  age: 37 } ];
-          r.total = 1;
-          test.ok( compareCollections( results, r ) );
+
+          test.equal( total, 1 );
+          compareCollections( test, results, r );
           
           test.done();
-          
-        /*  g.people.select( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Mobily' } ] } }, function( err, results ){
-            test.ifError( err );
-
-            var r = [ 
-                      { name: 'Chiara',    surname: 'Mobily',     age: 22 },
-                      { name: 'Tony',      surname: 'Mobily',     age: 37 },
-                      { name: 'Daniela',   surname: 'Mobily',     age: 64 },
-                    ];
-            r.total = 3;
-            //test.deepEqual( results, r );
-            test.ok( compareCollections( results, r ) );
-
-          })
-         */
-
         })
 
 
@@ -274,7 +256,7 @@ exports.get = function( getDbInfo, closeDb ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
 
-        g.people.select( { conditions: { and: [ { field: 'surname', type: 'startsWith', value: 'Mob' } ] } }, function( err, results ){
+        g.people.select( { conditions: { and: [ { field: 'surname', type: 'startsWith', value: 'Mob' } ] } }, function( err, results, total ){
           test.ifError( err );
 
           var r = [
@@ -282,30 +264,29 @@ exports.get = function( getDbInfo, closeDb ){
                     { name: 'Chiara',    surname: 'Mobily',     age: 22 },
                     { name: 'Daniela',   surname: 'Mobily',     age: 64 },
                   ];
-          r.total = 3;
-          //test.deepEqual( results, r );
-          test.ok( compareCollections( results, r ) );
 
+          test.equal( total, 3 );
+          compareCollections( test, results, r );
 
-          g.people.select( { conditions: { and: [ { field: 'surname', type: 'endsWith', value: 'nor' } ]  } }, function( err, results ){
+          g.people.select( { conditions: { and: [ { field: 'surname', type: 'endsWith', value: 'nor' } ]  } }, function( err, results, total ){
             test.ifError( err );
 
             var r = [
               { name: 'Sara',  surname: 'Connor', age: 14 },
             ];
-            r.total = 1;
-            //test.deepEqual( results, r );
-            test.ok( compareCollections( results, r ) )
 
-            g.people.select( { conditions: { and: [ { field: 'surname', type: 'contains', value: 'on' } ] } }, function( err, results ){
+            compareCollections( test, results, r );
+            test.equal( total, 1 );
+
+            g.people.select( { conditions: { and: [ { field: 'surname', type: 'contains', value: 'on' } ] } }, function( err, results, total ){
               test.ifError( err );
 
               var r = [
                 { name: 'Sara',  surname: 'Connor', age: 14 },
               ];
-              r.total = 1;
-              //test.deepEqual( results, r );
-              test.ok( compareCollections( results, r ) )
+
+              compareCollections( test, results, r );
+              test.equal( total, 1 );
 
               test.done();
             });
@@ -320,30 +301,30 @@ exports.get = function( getDbInfo, closeDb ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
 
-        g.people.select( { conditions: { and: [ { field: 'name', type: 'gt', value: 'M' } ] } }, function( err, results ){
+        g.people.select( { conditions: { and: [ { field: 'name', type: 'gt', value: 'M' } ] } }, function( err, results, total ){
           test.ifError( err );
 
           var r = [
             { name: 'Tony',      surname: 'Mobily',     age: 37 },
             { name: 'Sara',      surname: 'Connor',     age: 14 },
           ];
-          r.total = 2;
-          //test.deepEqual( results, r );
-          test.ok( compareCollections( results, r ) );
 
-          g.people.select( { conditions: { and: [ { field: 'age', type: 'gt', value: 22 } ] } }, function( err, results ){
+          compareCollections( test, results, r );
+          test.equal( total, 2 );
+
+          g.people.select( { conditions: { and: [ { field: 'age', type: 'gt', value: 22 } ] } }, function( err, results, total ){
             test.ifError( err );
 
             var r = [
               { name: 'Tony',      surname: 'Mobily',     age: 37 },
               { name: 'Daniela',   surname: 'Mobily',     age: 64 },
             ];
-            r.total = 2;
-            //test.deepEqual( results, r );
-            test.ok( compareCollections( results, r ) );
+
+            compareCollections( test, results, r );
+            test.equal( total, 2 );
 
 
-            g.people.select( { conditions: { and: [ { field: 'age', type: 'gte', value: 22 } ] } }, function( err, results ){
+            g.people.select( { conditions: { and: [ { field: 'age', type: 'gte', value: 22 } ] } }, function( err, results, total ){
               test.ifError( err );
 
               var r = [
@@ -351,20 +332,20 @@ exports.get = function( getDbInfo, closeDb ){
                 { name: 'Tony',      surname: 'Mobily',     age: 37 },
                 { name: 'Daniela',   surname: 'Mobily',     age: 64 },
               ];
-              r.total = 3;
-              //test.deepEqual( results, r );
-              test.ok( compareCollections( results, r ) );
+
+              compareCollections( test, results, r );
+              test.equal( total, 3 );
 
 
-              g.people.select( { conditions: { and: [ { field: 'age', type: 'gt', value: 22 }, { field: 'age', type: 'lt', value: 60 }] } }, function( err, results ){
+              g.people.select( { conditions: { and: [ { field: 'age', type: 'gt', value: 22 }, { field: 'age', type: 'lt', value: 60 }] } }, function( err, results, total ){
                 test.ifError( err );
 
                 var r = [
                  { name: 'Tony',      surname: 'Mobily',     age: 37 },
                 ];
-                r.total = 1;
-                //test.deepEqual( results, r );
-                test.ok( compareCollections( results, r ) );
+
+                compareCollections( test, results, r );
+                test.equal( total, 1 );
 
                 test.done();
               })
@@ -381,36 +362,39 @@ exports.get = function( getDbInfo, closeDb ){
      
        clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
-        g.people.select( { ranges: { limit: 1 } }, function( err, results ){
+        g.people.select( { ranges: { limit: 1 } }, function( err, results, total ){
           test.ifError( err );
 
-          test.deepEqual( results.total, 1 );
+          test.equal( total, 1 );
 
-          g.people.select( { ranges: { limit: 2 } }, function( err, results ){
+          g.people.select( { ranges: { limit: 2 } }, function( err, results, total ){
             test.ifError( err );
-            test.deepEqual( results.total, 2 );
 
+            test.equal( total, 2 );
 
-            g.people.select( { ranges: { from: 1, to: 3 } }, function( err, results ){
+            g.people.select( { ranges: { from: 1, to: 3 } }, function( err, results, total ){
               test.ifError( err );
-              test.deepEqual( results.total, 3 );
-    
 
-              g.people.select( { ranges: {  to: 2 } }, function( err, results ){
+              test.equal( total, 3 );
+
+              g.people.select( { ranges: {  to: 2 } }, function( err, results, total ){
                 test.ifError( err );
-                test.deepEqual( results.total, 3 );
 
-                g.people.select( { ranges: { from: 1 } }, function( err, results ){
+                test.equal( total, 3 );
+
+                g.people.select( { ranges: { from: 1 } }, function( err, results, total ){
                   test.ifError( err );
-                  test.deepEqual( results.total, 3 );
 
-                  g.people.select( { ranges: { to: 4, limit: 2 } }, function( err, results ){
+                  test.equal( total, 3 );;
+
+                  g.people.select( { ranges: { to: 4, limit: 2 } }, function( err, results, total ){
                     test.ifError( err );
-                    test.deepEqual( results.total, 2 );
 
-                    g.people.select( { ranges: { from: 1, to: 4, limit: 2 } }, function( err, results ){
+                    test.equal( total, 2 );
+                    g.people.select( { ranges: { from: 1, to: 4, limit: 2 } }, function( err, results, total ){
                       test.ifError( err );
-                      test.deepEqual( results.total, 2 );
+
+                      test.equal( total, 2 );
                       test.done();
                     });
                   });
@@ -433,7 +417,7 @@ exports.get = function( getDbInfo, closeDb ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
 
-        g.people.select( { sort: { name: 1 } }, function( err, results ){
+        g.people.select( { sort: { name: 1 } }, function( err, results, total ){
           test.ifError( err );
 
           var r =  [
@@ -442,11 +426,12 @@ exports.get = function( getDbInfo, closeDb ){
             { name: 'Sara',      surname: 'Connor',     age: 14 },
             { name: 'Tony',      surname: 'Mobily',     age: 37 },
           ];
-          r.total = 4;
+
           test.deepEqual( results, r );
+          test.equal( total, 4 );
 
 
-          g.people.select( { sort: { surname: 1, name: 1 } }, function( err, results ){
+          g.people.select( { sort: { surname: 1, name: 1 } }, function( err, results, total ){
             test.ifError( err );
 
             var r =  [
@@ -455,21 +440,20 @@ exports.get = function( getDbInfo, closeDb ){
               { name: 'Daniela',   surname: 'Mobily',     age: 64 },
               { name: 'Tony',      surname: 'Mobily',     age: 37 },
             ];
-            r.total = 4;
+
             test.deepEqual( results, r );
+            test.equal( total, 4 );
 
-
-            g.people.select( { ranges: { limit: 2 },  sort: { surname: -1, age: -1 } }, function( err, results ){
+            g.people.select( { ranges: { limit: 2 },  sort: { surname: -1, age: -1 } }, function( err, results, total ){
               test.ifError( err );
 
               var r =  [
                 { name: 'Daniela',   surname: 'Mobily',     age: 64 },
                 { name: 'Tony',      surname: 'Mobily',     age: 37 },
               ];
-              r.total = 2;
-              test.deepEqual( results, r );
-              //test.ok( compareCollections( results, r ) );
 
+              test.deepEqual( results, r );
+              test.equal( total, 2 );
 
               test.done();
             });
@@ -533,7 +517,7 @@ exports.get = function( getDbInfo, closeDb ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
 
-        g.people.select( { },  function( err, results ){
+        g.people.select( { },  function( err, results, total ){
           test.ifError( err );
   
           var r =  [
@@ -542,10 +526,9 @@ exports.get = function( getDbInfo, closeDb ){
             { name: 'Sara',      surname: 'Connor',     age: 14 },
             { name: 'Daniela',   surname: 'Mobily',     age: 64 },
           ];
-          r.total = 4;
-          //test.deepEqual( results, r );
-          test.ok( compareCollections( results, r ) );
 
+          compareCollections( test, results, r );
+          test.equal( total, 4 );
 
           
           g.people.delete( { conditions: { and: [ { field: 'name', type: 'is', value: 'DOES NOT EXIST' } ] }  },  function( err, howMany ){
@@ -558,7 +541,7 @@ exports.get = function( getDbInfo, closeDb ){
    
               test.equal( howMany, 1 );
   
-              g.people.select( { },  function( err, results ){
+              g.people.select( { },  function( err, results, total ){
                 test.ifError( err );
     
                 var r =  [
@@ -566,27 +549,25 @@ exports.get = function( getDbInfo, closeDb ){
                   { name: 'Sara',      surname: 'Connor',     age: 14 },
                   { name: 'Daniela',   surname: 'Mobily',     age: 64 },
                 ];
-                r.total = 3;
-                //test.deepEqual( results, r );
-                test.ok( compareCollections( results, r ) );
 
-  
+                compareCollections( test, results, r );
+                test.equal( total, 3 );
+
   
                 g.people.delete( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Mobily' } ] }  }, { multi: true }, function( err, howMany){
                   test.ifError( err );
     
                   test.equal( howMany, 2 );
   
-                  g.people.select( { },  function( err, results ){
+                  g.people.select( { },  function( err, results, total ){
                     test.ifError( err );
     
                     var r =  [
                       { name: 'Sara',      surname: 'Connor',     age: 14 },
                     ];
-                    r.total = 1;
-                    //test.deepEqual( results, r );
-                    test.ok( compareCollections( results, r ) );
 
+                    compareCollections( test, results, r );
+                    test.equal( total, 1 );
   
                     clearAndPopulateTestCollection( g, function( err ){
                       test.ifError( err );
@@ -596,7 +577,7 @@ exports.get = function( getDbInfo, closeDb ){
     
                         test.deepEqual( howMany, 1 );
   
-                        g.people.select( { },  function( err, results ){
+                        g.people.select( { },  function( err, results, total ){
                           test.ifError( err );
    
                           var r =  [
@@ -605,10 +586,9 @@ exports.get = function( getDbInfo, closeDb ){
                             { name: 'Sara',      surname: 'Connor',     age: 14 },
                             { name: 'Daniela',   surname: 'Mobily',     age: 64 },
                           ];
-                          r.total = 3;
-                          //test.deepEqual( results, r );
-                          test.ok( compareCollections( results, r ) );
 
+                          compareCollections( test, results, r );
+                          test.equal( total, 3 );
    
                           test.done();
                         });
@@ -623,6 +603,31 @@ exports.get = function( getDbInfo, closeDb ){
       })
     },
 
+
+    "select, or filters": function( test ){
+      clearAndPopulateTestCollection( g, function( err ){
+        test.ifError( err );
+
+
+        g.people.select( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Mobily' } ], or: [ { field: 'age', type: 'is', value: 37 }, { field: 'age', type: 'is', value: 22 }  ]  } }, function( err, results, total ){
+          test.ifError( err );
+
+          var r = [
+                    { name: 'Tony',      surname: 'Mobily',     age: 37 },
+                    { name: 'Chiara',    surname: 'Mobily',     age: 22 },
+                  ];
+
+          test.equal( total, 2 );
+          compareCollections( test, results, r );
+
+          test.done();
+        });
+      });
+    },
+
+
+
+
     "updates": function( test ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
@@ -630,52 +635,47 @@ exports.get = function( getDbInfo, closeDb ){
         g.people.update( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Mobily' } ] } }, { surname: 'Tobily' }, { multi: true }, function( err, howMany ){
           test.deepEqual( howMany, 3 );
 
-          g.people.select( { },  function( err, results ){
+          g.people.select( { },  function( err, results, total ){
             var r =  [
               { name: 'Chiara',    surname: 'Tobily',     age: 22 },
               { name: 'Tony',      surname: 'Tobily',     age: 37 },
               { name: 'Sara',      surname: 'Connor',     age: 14 },
               { name: 'Daniela',   surname: 'Tobily',     age: 64 },
             ];
-            r.total = 4;
-            //test.deepEqual( results, r );
-            test.ok( compareCollections( results, r ) );
 
+            compareCollections( test, results, r );
+            test.equal( total, 4 );
 
             g.people.update( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Tobily' } ] }, sort: { name: -1 }  }, { surname: 'Lobily' }, function( err, howMany ){
               test.deepEqual( howMany, 1 );
 
-              g.people.select( { },  function( err, results ){
+              g.people.select( { },  function( err, results, total ){
                 var r =  [
                   { name: 'Chiara',    surname: 'Tobily',     age: 22 },
                   { name: 'Tony',      surname: 'Lobily',     age: 37 },
                   { name: 'Sara',      surname: 'Connor',     age: 14 },
                   { name: 'Daniela',   surname: 'Tobily',     age: 64 },
                 ];
-                r.total = 4;
-                //test.deepEqual( results, r );
-                test.ok( compareCollections( results, r ) );
 
+                compareCollections( test, results, r );
+                test.equal( total, 4 );
 
                 g.people.update( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Lobily' } ] } }, { surname: 'Sobily' }, { deleteUnsetFields: true }, function( err, howMany ){
-                  test.deepEqual( howMany, 1 );
 
-                  g.people.select( { },  function( err, results ){
-                    var r =  [
-                      { name: 'Chiara',    surname: 'Tobily',     age: 22 },
-                      { surname: 'Sobily' },
-                      { name: 'Sara',      surname: 'Connor',     age: 14 },
-                      { name: 'Daniela',   surname: 'Tobily',     age: 64 },
-                    ];
-                    r.total = 4;
-                    //test.deepEqual( results, r );
-                    test.ok( compareCollections( results, r ) );
+                  test.equal( howMany, 1 );
 
+                  g.people.select( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Sobily' } ] } },  function( err, results, total ){
+
+                    test.ok( typeof( results[ 0 ].name ) === 'undefined' || results[ 0 ].name === null || results[ 0 ].name ===  undefined );
+                    test.ok( typeof( results[ 0 ].age ) === 'undefined' || results[ 0 ].age === null || results[ 0 ].age ===  undefined );
+                    test.equal( total, 1 );
 
                     test.done();
                   })
                 });
               })
+
+
             });
           })
         });
