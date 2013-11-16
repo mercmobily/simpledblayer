@@ -111,7 +111,7 @@ var clearAndPopulateTestCollection = function( g, cb ){
   })
 }
 
-exports.get = function( getDbInfo, closeDb ){
+exports.get = function( getDbInfo, closeDb, makeExtraTests ){
   
   var tests;
   var g = {};
@@ -160,11 +160,9 @@ exports.get = function( getDbInfo, closeDb ){
       try { 
         g.Layer = declare( [ SimpleDbLayer, g.driver.DriverMixin ], { db: g.driver.db });
 
-        g.people = new g.Layer( 'people', {  name: true, surname: true, age: true } );
+        g.people = new g.Layer( 'people', {  name: true, surname: true, age: false }  );
 		  	test.ok( g.people );
 
-        g.ranks = new g.Layer( 'ranks', {  name: true, rank: true } );
-        test.ok( g.ranks );
       } catch( e ){
         console.log("Error: couldn't create basic test layers, aborting all tests...");
         console.log( e );
@@ -199,7 +197,6 @@ exports.get = function( getDbInfo, closeDb ){
       
       g.people.delete( { }, { multi: true }, function( err ){
         test.ifError( err );
-
         var person = { name: "Joe", surname: "Mitchell", age: 48 };
         g.people.insert( person, { returnRecord: true }, function( err, personReturned ){
           test.ifError( err );
@@ -247,13 +244,20 @@ exports.get = function( getDbInfo, closeDb ){
       })
     },
 
-    "selects, partial equality": function( test ){
+    "selects, partial equality": function CALLED( test ){
+
+        var self = this;
 
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
 
+
         g.people.select( { conditions: { and: [ { field: 'surname', type: 'startsWith', value: 'Mob' } ] } }, function( err, results, total ){
           test.ifError( err );
+
+          //console.log("ERROR HAPPENING NOW!");
+          //p.e.r=10;
+          //console.log("ERROR HAPPENED!");
 
           var r = [
                     { name: 'Tony',      surname: 'Mobily',     age: 37 },
@@ -621,6 +625,36 @@ exports.get = function( getDbInfo, closeDb ){
       });
     },
 
+    "select, case insensitive": function( test ){
+      clearAndPopulateTestCollection( g, function( err ){
+        test.ifError( err );
+
+
+        g.people.select( { conditions: { and: [ { field: 'surname', type: 'is', value: 'MObILy' } ] } }, function( err, results, total ){
+          test.ifError( err );
+
+          var r = [
+                    { name: 'Tony',      surname: 'Mobily',     age: 37 },
+                    { name: 'Chiara',    surname: 'Mobily',     age: 22 },
+                    { name: 'Daniela',   surname: 'Mobily',     age: 64 },
+                  ];
+
+
+          test.equal( total, 3 );
+          compareCollections( test, results, r );
+
+          g.people.select( { conditions: { and: [ { field: 'surname', type: 'contains', value: 'ObI' } ] } }, function( err, results, total ){
+            test.ifError( err );
+
+            test.equal( total, 3 );
+            compareCollections( test, results, r );
+
+            test.done();
+          });
+        });
+      });
+    },
+
 
 
 
@@ -676,12 +710,19 @@ exports.get = function( getDbInfo, closeDb ){
           })
         });
       })
-    },
+    }
+  }
 
+  if( typeof( makeExtraTests ) === 'function' ){
+    
+    // Copy tests over
+    var extraTests = makeExtraTests( g );
+    for( var k in extraTests ){
+      tests[ k ] = extraTests[ k ];
+    };
+  };
 
-    finish: finish 
-
-  }    
+  tests.finish = finish;
 
   return tests;
 }
