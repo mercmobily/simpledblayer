@@ -119,21 +119,24 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
   var startup = function( test ){
     var self = this;
 
-    test.doesNotThrow( function(){
 
-      getDbInfo( function( err, db, DriverMixin ){
-        if( err ){
-          throw( new Error("Could not connect to db, aborting all tests") );
-          process.exit();
-        }
+    process.on('uncaughtException', function(err) {
+      console.error(err.stack);
+    });
 
-        // Set the important g.driver variables (db and DriverMixin)
-        g.driver = {};
-        g.driver.db = db;
-        g.driver.DriverMixin = DriverMixin;
 
-        test.done();
-      });
+    getDbInfo( function( err, db, DriverMixin ){
+      if( err ){
+        throw( new Error("Could not connect to db, aborting all tests") );
+        process.exit();
+      }
+
+      // Set the important g.driver variables (db and DriverMixin)
+      g.driver = {};
+      g.driver.db = db;
+      g.driver.DriverMixin = DriverMixin;
+
+      test.done();
     });
   }
 
@@ -177,6 +180,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       test.ok( peopleDb );
       test.ok( peopleDb.db === g.people.db );
 
+
       // Test that passing `db` will override whatever was in the prototype
       var fakeDb = { collection: function(){ return "some" } };
       var peopleRewriteDb = new g.Layer( 'people', {  name: true, surname: true, age: true }, fakeDb );
@@ -187,14 +191,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         new LayerNoDb( 'people', {  name: true, surname: true, age: true } );
       }, undefined, "Constructing a collection without definind DB in prototype or constructions should fail");
 
-
       test.done();
 
     },
 
     "insert with returnRecord": function( test ){
 
-      
       g.people.delete( { }, { multi: true }, function( err ){
         test.ifError( err );
         var person = { name: "Joe", surname: "Mitchell", age: 48 };
