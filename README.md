@@ -64,7 +64,12 @@ Once you have your DbLayer class, it's up to you to create objects which will th
 
     });
 
-Note how `people` is an object which will be tied to the table/collection `people`. The second parameter in the constructor is the list of fields in the table -- note that this is _not_ a schema definition.
+Note how `people` is an object which will be tied to the table/collection `people`.
+
+The second parameter in the constructor is the list of fields in the table -- note that this is _not_ a schema definition. However:
+
+* Each key in the hash will be a valid, savable field
+* If the corresponding value is set to a `true`ly one, then the field is also searchable
 
 ## Create your model object with a specific db connection
 
