@@ -246,7 +246,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       })
     },
 
-    "selects, partial equality": function CALLED( test ){
+    "selects, partial equality": function( test ){
 
         var self = this;
 
