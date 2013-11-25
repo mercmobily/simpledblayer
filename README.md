@@ -160,11 +160,11 @@ This is what the search filter can look like:
 
 Conditions are grouped into `and` and `or` ones. The db query will be the list of `and` conditions _linked with `and`_ to the list of `or` conditions. See it as `A and B and C and (D or E of F )` where `A`, `B` and `C` are the `and` conditions, and `D`, `E`, `F` are the `or` conditions.
 
-The possibly comparison types are: `is` `eq` `lt` `lte` `gt` `gte` `startWith` `startsWith` `contain` `contains` `endsWith` `endWith`.
+The possible comparison types are: `is` `eq` `lt` `lte` `gt` `gte` `startWith` `startsWith` `contain` `contains` `endsWith` `endWith`.
 
 If the `delete` field is on (it's off by default), the driver will _delete_ any fetched record. For straight selects, it will delete all records _before_ calling your callback. For cursor-driven selects, it will delete records as they are fetched with `cursor.next()` 
 
-Ranges can have `from`, `to` and `limit` set. If `fields are missing, the others are automatically worked out.
+Ranges can have `from`, `to` and `limit` set. If `fields` are missing, the others are automatically worked out.
 For sorting, -1 means from smaller to bigger and 1 means from bigger to smaller.
 
 
