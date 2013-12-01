@@ -364,39 +364,48 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
      
        clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
-        g.people.select( { ranges: { limit: 1 } }, function( err, results, total ){
+        g.people.select( { ranges: { limit: 1 } }, function( err, results, total, grandTotal ){
           test.ifError( err );
 
           test.equal( total, 1 );
+          test.equal( grandTotal, 4 );
+          console.log( grandTotal );
 
           g.people.select( { ranges: { limit: 2 } }, function( err, results, total ){
             test.ifError( err );
 
             test.equal( total, 2 );
+            test.equal( grandTotal, 4 );
 
             g.people.select( { ranges: { from: 1, to: 3 } }, function( err, results, total ){
               test.ifError( err );
 
               test.equal( total, 3 );
+              test.equal( grandTotal, 4 );
 
               g.people.select( { ranges: {  to: 2 } }, function( err, results, total ){
                 test.ifError( err );
 
                 test.equal( total, 3 );
+                test.equal( grandTotal, 4 );
 
                 g.people.select( { ranges: { from: 1 } }, function( err, results, total ){
                   test.ifError( err );
 
                   test.equal( total, 3 );;
+                  test.equal( grandTotal, 4 );
 
                   g.people.select( { ranges: { to: 4, limit: 2 } }, function( err, results, total ){
                     test.ifError( err );
 
                     test.equal( total, 2 );
+                    test.equal( grandTotal, 4 );
+
                     g.people.select( { ranges: { from: 1, to: 4, limit: 2 } }, function( err, results, total ){
                       test.ifError( err );
 
                       test.equal( total, 2 );
+                      test.equal( grandTotal, 4 );
                       test.done();
                     });
                   });
