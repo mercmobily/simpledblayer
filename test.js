@@ -514,6 +514,9 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       })
     },
 
+
+
+
     "deletes": function( test ){
     
       clearAndPopulateTestCollection( g, function( err ){
@@ -626,6 +629,32 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         });
       });
     },
+
+    "select, hardLimitOnQuery and grandTotal": function( test ){
+      clearAndPopulateTestCollection( g, function( err ){
+        test.ifError( err );
+
+        people2 = new g.Layer( 'people', {  name: true, surname: true, age: false }  );
+        people2.hardLimitOnQueries = 2;
+
+        people2.select( { sort: { age: 1 } }, function( err, results, total, grandTotal ){
+          test.ifError( err );
+
+          var r = 
+
+[ { name: 'Sara', surname: 'Connor', age: 14 },
+  { name: 'Chiara', surname: 'Mobily', age: 22 } ]
+
+          ;
+
+          test.equal( total, 2 );
+          compareCollections( test, results, r );
+
+          test.done();
+        });
+      });
+    },
+
 
     "select, case insensitive": function( test ){
       clearAndPopulateTestCollection( g, function( err ){
