@@ -6,7 +6,7 @@ SimpleDbLayer is a module that will allow you to connect and query a DB server. 
 * It doesn't manage connections. You will have to create a connection to the database and pass it
 * Simple querying. You cannot create complex queries with nested ANDs and ORs -- only one level of AND and OR. You can however check for equality, greater/smaller than, starts with/ends with/contains, etc. as well as sorting and limiting/ranges
 * It has full cursor support
-* It is schema-free. You only need to tell it what fields are there -- schema definition is 100% not dealt with
+* It is schema-free. You only need to tell it what fields are there and if they are searchable -- schema definition is 100% NOT dealt with
 * It is written with very simple, Object Oriented code using [simpleDeclare](https://github.com/mercmobily/simpleDeclare)
 
 # How to use it
@@ -14,12 +14,13 @@ SimpleDbLayer is a module that will allow you to connect and query a DB server. 
 ## DB connection
 
 SimpleDbLayer does NOT handle DB connections for you. It's your responsibility to connect to the database and pass the connection object to it.
-For MongoDB, you can use MongoWrapper that does just that for you:
+For MongoDB, you can use Mongo's connect call:
 
-    var mw = require('mongowrapper');
-    mw.connect('mongodb://localhost/hotplate', {}, function( err, db ){
+    var mongo = require('mongo');
+    mongo.MongoClient.connect( 'mongodb://localhost/hotplate', {}, function( err, db ){
      // db exists here
-    });
+    }; 
+
 
 Or for Tingodb just create the DB object:
 
@@ -33,18 +34,19 @@ In order to use this class, you will need to _mixin_ the basic SimpleDbLayer cla
 
 Here is how you make up the class:
 
-    var mw = require('mongowrapper');
+    var mongo = require('mongodb');
 
     var declare = require('simpledeclare');
     var SimpleDbLayer = require('simpledblayer'); // This is the main class
     var SimpleDbLayerMongo = require('simpledblayer-mongo'); // This is the layer-specific mixin
 
     // Connect to the database
-    mw.connect('mongodb://localhost/someDB', {}, function( err, db ){
+    mongo.MongoClient.connect('mongodb://localhost/someDB', {}, function( err, db ){
 
       // Make up the database class
       var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
 
+      // ...your program goes here
 
     });
 
@@ -60,6 +62,8 @@ Or, you could use TingoDB:
 
     // Make up the database class
     var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerTingo ], { db: db } );
+
+    // ...your program goes here
 
 There is no difference in functionality between the two layers.
 
@@ -88,11 +92,11 @@ In this case, logEntries will be tied to the table `logger`, but queries will be
 
 Cursor-less queries on large data sets will likely chew up huge amounts of memory. This is why you can set a hard limit on queries:
 
-      var DbLayer = declare( [ SimpleDbLayer, MongoMixin ], { db: db, hardLimitOnQueries: 10 } );
+      var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db, hardLimitOnQueries: 10 } );
 
 This will imply that each non-cursor query will only ever return 10 items max. You can also set this limit on specific objects:
 
-      var DbLayer = declare( [ SimpleDbLayer, MongoMixin ], { db: db } );
+      var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
       var people = new DbLayer( 'people', {  name: true, surname: true, age: true } );
       people.hardLimitOnQueries = 10;
 
@@ -121,11 +125,11 @@ Normal queries will just return the data as an array of values. Cursor queries w
 
     people.select( {}, { useCursor: true , delete: false }, function( err, cursor ){
     if( err ){
-      next err
+      console.log( "ERROR!", err );
     } else {
-      cursor.next( err, record ){
+      cursor.next( function( err, record ){
         if( err ){
-          next( err );
+          console.log( "ERROR!", err );
         } else {
           console.log( "The first record:" );
           console.log( record );
