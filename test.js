@@ -369,7 +369,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
           test.equal( total, 1 );
           test.equal( grandTotal, 4 );
-          console.log( grandTotal );
 
           g.people.select( { ranges: { limit: 2 } }, function( err, results, total ){
             test.ifError( err );
