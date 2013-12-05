@@ -163,7 +163,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       try { 
         g.Layer = declare( [ SimpleDbLayer, g.driver.DriverMixin ], { db: g.driver.db });
 
-        g.people = new g.Layer( 'people', {  name: true, surname: true, age: false }  );
+        g.people = new g.Layer( 'people', {  name: true, surname: true, age: true }  );
 		  	test.ok( g.people );
 
       } catch( e ){
@@ -642,7 +642,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
 
-        people2 = new g.Layer( 'people', {  name: true, surname: true, age: false }  );
+        people2 = new g.Layer( 'people', {  name: true, surname: true, age: true }  );
         people2.hardLimitOnQueries = 2;
 
         people2.select( { sort: { age: 1 } }, function( err, results, total, grandTotal ){
