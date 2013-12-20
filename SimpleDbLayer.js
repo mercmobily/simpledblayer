@@ -195,6 +195,10 @@ var SimpleDbLayer = declare( null, {
   },
 
 
+  makeIndex: function( keys, options ){
+    console.log("Called makeIndex in collection ", this.table, ". Keys: ", keys );
+  },
+
 });
 
 
