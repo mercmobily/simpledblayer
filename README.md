@@ -206,6 +206,23 @@ This is a simple update:
 If `multi` is set to `true`, all records matching the search will be updated. Otherwise, only one record will be updated.
 If `deleteUnsetFields` is set to `true`, then any fields that are defined as valid fields for the collection, but ar _not_ defined in the update object, will be zapped. So, if your record is `{ name: 'Tony', age: 37 }` and you run an update with `deleteUnsetFields` set to true and with the update record set as `{ name: 'Tony2' }`, the new record will become `{ name: 'Tony2 }`. If `deleteUnsetFields` is set to `false`, the resul would be `{name: Tony2, age: 37 }` (unset records are not zapped).
 
+# Indexing
+
+You can create and delete indexes using SimpleDbLayer.
+The methods are:
+
+## `makeIndex( keys, options )`
+
+The method `makeIndex` will create an index. When calling the function:
+
+* `keys` is an hash where each key is the field name, and each value can be `1` (ascending order) or `-1` (descending order). So, if you have `{ name: 1, surname: 1 }`, the database will be instructed to create an index with the fields `name` and `surname`, both in ascending order.
+
+* `options` is a hash where: `{ background: true }` will start the process in background; `unique` will instruct the database that the index will need to be unique; `name` will force the index name to a specific label, rather than the database's default.
+
+## `dropAllIndexes()`
+
+The method `dropAllIndexes` will drop all indexes for the table/collection.
+
 # Why another DB abstraction module?
 
 This module was specificaly created to allow the [JsonRestStores](https://github.com/mercmobily/JsonRestStores) module to interact with several database engines. It's very minimalistic, it doesn't allow complex querying but it does cover most needs in non-complex data structures.
