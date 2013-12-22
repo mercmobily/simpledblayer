@@ -196,7 +196,11 @@ var SimpleDbLayer = declare( null, {
 
 
   makeIndex: function( keys, options ){
-    console.log("Called makeIndex in collection ", this.table, ". Keys: ", keys );
+    //console.log("Called UNIMPLEMENTED makeIndex in collection ", this.table, ". Keys: ", keys );
+  },
+
+  dropAllIndexes: function( keys, options ){
+    //console.log("Called UNIMPLEMENTED dropAllIndexes in collection ", this.table, ". Keys: ", keys );
   },
 
 });
