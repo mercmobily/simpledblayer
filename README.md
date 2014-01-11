@@ -79,6 +79,7 @@ The second parameter in the constructor is the list of fields in the table -- no
 
 * Each key in the hash will be a valid, savable field
 * If the corresponding value is set to a `true`ly one, then the field is also searchable
+* If the corresponding value is set to `null`, then the field will be valid and savable, but it will not be returned by queries (it will be "invisible"). This is especially useful for "position" fields, that need to be defined and editable, but mustn't be returned by queries)
 
 ## Create your model object with a specific db connection
 
@@ -228,3 +229,21 @@ The method `dropAllIndexes` will drop all indexes for the table/collection.
 This module was specificaly created to allow the [JsonRestStores](https://github.com/mercmobily/JsonRestStores) module to interact with several database engines. It's very minimalistic, it doesn't allow complex querying but it does cover most needs in non-complex data structures.
 
 If you are after a full-blown database abstraction module, you should look somewhere else.
+
+# Position fields
+
+This module allows has a handy function that deals with "repositioning":
+
+    reposition: function( positionField, idProperty, id, moveBeforeId, cb ){
+
+This function takes:
+
+* `positionField`. The field that will be used to store the elements' positions
+* `idProperty`. The ID property that will be used for record lookups
+* `id`. The ID of the record to be repositioned
+* `moveBeforeId`. The record before which `id` will be placed. Note that if `moveBeforeId` is `undefined` or `null`, the item will be placed last.
+
+The result is that the `positionField` field of each record is set in such a way so that the element with idProperty `id` is placed before the element with idProperty `moveBeforeId`.
+
+
+

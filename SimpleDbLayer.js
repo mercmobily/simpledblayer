@@ -194,6 +194,10 @@ var SimpleDbLayer = declare( null, {
     cb( null, null );
   },
 
+  reposition: function( positionField, record, afterRecord, cb ){
+    console.log("REPOSITIONING BASING IT ON ", positionField, "RECORD: ", record, "TO GO AFTER:", afterRecord );
+    cb( null, 0 );
+  },
 
   makeIndex: function( keys, options ){
     //console.log("Called UNIMPLEMENTED makeIndex in collection ", this.table, ". Keys: ", keys );
