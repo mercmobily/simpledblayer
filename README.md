@@ -232,15 +232,15 @@ If you are after a full-blown database abstraction module, you should look somew
 
 # Position fields
 
-This module allows has a handy function that deals with "repositioning":
+This module allows has a handy function that deals with "relocating":
 
-    reposition: function( positionField, idProperty, id, moveBeforeId, cb ){
+    relocation: function( positionField, idProperty, id, moveBeforeId, cb ){
 
 This function takes:
 
 * `positionField`. The field that will be used to store the elements' positions
 * `idProperty`. The ID property that will be used for record lookups
-* `id`. The ID of the record to be repositioned
+* `id`. The ID of the record to be relocated 
 * `moveBeforeId`. The record before which `id` will be placed. Note that if `moveBeforeId` is `undefined` or `null`, the item will be placed last.
 
 The result is that the `positionField` field of each record is set in such a way so that the element with idProperty `id` is placed before the element with idProperty `moveBeforeId`.

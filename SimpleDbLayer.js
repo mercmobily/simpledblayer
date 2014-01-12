@@ -194,7 +194,7 @@ var SimpleDbLayer = declare( null, {
     cb( null, null );
   },
 
-  reposition: function( positionField, record, afterRecord, cb ){
+  relocation: function( positionField, record, afterRecord, cb ){
     console.log("REPOSITIONING BASING IT ON ", positionField, "RECORD: ", record, "TO GO AFTER:", afterRecord );
     cb( null, 0 );
   },
