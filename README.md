@@ -101,6 +101,8 @@ This will imply that each non-cursor query will only ever return 10 items max. Y
       var people = new DbLayer( 'people', {  name: true, surname: true, age: true } );
       people.hardLimitOnQueries = 10;
 
+Note that hardLimtOnQueries only ever applies to non-cursor queries.
+
 ## Querying: insert
 
 To insert data into your table:
@@ -115,7 +117,11 @@ For normal queries:
 
     people.select( {}, { useCursor: false , delete: false }, function( err, data, total, grandTotal ){
 
-For cursor queries:
+In normal queries, you can also pass the `skipHardLimitOnQueries` flag. However, remember that if you have a large data set, non-cursor queries will attempt to place the whole thing in memory and will probably kill your server:
+
+    people.select( {}, { useCursor: false , delete: false, skipHardLimitOnQueries: true }, function( err, data, total, grandTotal ){
+
+For cursor queries (for which `skipHardLimitOnQueries` is implied since it would be pointless):
 
     people.select( {}, { useCursor: true , delete: false }, function( err, cursor, total, grandTotal ){
 

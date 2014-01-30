@@ -50,7 +50,7 @@ var SimpleDbLayer = declare( null, {
   },
 
 
-  sanitizeRanges: function( ranges, applyHardLimitOnQueries ){
+  sanitizeRanges: function( ranges, skipHardLimitOnQueries ){
     var self = this
 
     var saneRanges = {};
@@ -117,7 +117,7 @@ var SimpleDbLayer = declare( null, {
     // Apply hard limit on queries if required to do so. Driver implementations
     // should only pass 'true' for non-cursor queries, to prevent huge toArray() on
     // a million records
-    if( applyHardLimitOnQueries ){
+    if( ! skipHardLimitOnQueries ){
       if( self.hardLimitOnQueries && ( saneRanges.limit === 0 || sr.limit > self.hardLimitOnQueries ) ){
         saneRanges.limit = self.hardLimitOnQueries;
       }
