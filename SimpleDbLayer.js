@@ -22,9 +22,15 @@ var SimpleDbLayer = declare( null, {
   table: '',
   hardLimitOnQueries: 0,
 
-  constructor: function( table,  fields, db ){
+  constructor: function( table,  options, db ){
 
     var self = this;
+
+    // Get 'options' ready
+    if( typeof( options ) === 'undefined' || options == null ) options = {};
+    if( typeof( options.fields ) === 'undefined' || options.fields == null ) options.fields = {};
+    if( typeof( options.ref ) === 'undefined' || options.ref == null ) options.ref = {};
+    var fields = options.fields;
 
     // Check parameters -- `table` and `fields` must be there
     if( typeof( fields ) === 'undefined' ){
@@ -46,6 +52,7 @@ var SimpleDbLayer = declare( null, {
 
     // Set the parameters
     self.fields = fields;
+    self.ref = options.ref;
     self.table = table;
   },
 
