@@ -13,6 +13,7 @@ var
   dummy
 
 , declare = require('simpledeclare')
+, SimpleSchema = require('simpleschema')
 , SimpleDbLayer = require('./SimpleDbLayer.js')
 , async = require('async')
 ;
@@ -26,6 +27,12 @@ var peopleData = exports.peopleData = [
   { name: 'Sara',      surname: 'Connor',     age: 14 },
   { name: 'Daniela',   surname: 'Mobily',     age: 64 },
 ];
+
+var commonSchema = new SimpleSchema( {
+  name    : { type: 'string', searchable: true, sortable: true },
+  surname : { type: 'string', searchable: true, sortable: true },
+  age     : { type: 'number', searchable: true, sortable: true },
+});
 
 
 function i( v ){
@@ -163,7 +170,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       try { 
         g.Layer = declare( [ SimpleDbLayer, g.driver.DriverMixin ], { db: g.driver.db });
 
-        g.people = new g.Layer( 'people', {  name: true, surname: true, age: true }  );
+        g.people = new g.Layer( 'people', { schema: commonSchema } );
 		  	test.ok( g.people );
 
       } catch( e ){
@@ -176,19 +183,19 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
       // Test that it works also by passing the db in the constructor
       var LayerNoDb = declare( [ SimpleDbLayer, g.driver.DriverMixin ] );
-      var peopleDb = new LayerNoDb( 'people', {  name: true, surname: true, age: true }, g.driver.db );
+      var peopleDb = new LayerNoDb( 'people', { schema: commonSchema } , g.driver.db );
       test.ok( peopleDb );
       test.ok( peopleDb.db === g.people.db );
 
 
       // Test that passing `db` will override whatever was in the prototype
       var fakeDb = { collection: function(){ return "some" } };
-      var peopleRewriteDb = new g.Layer( 'people', {  name: true, surname: true, age: true }, fakeDb );
+      var peopleRewriteDb = new g.Layer( 'people', { schema: commonSchema }, fakeDb );
       test.ok( fakeDb === peopleRewriteDb.db );
 
       // Test that not passing `db` anywhere throws
       test.throws( function(){        
-        new LayerNoDb( 'people', {  name: true, surname: true, age: true } );
+        new LayerNoDb( 'people', { schema: commonSchema } );
       }, undefined, "Constructing a collection without definind DB in prototype or constructions should fail");
 
       test.done();
@@ -642,7 +649,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
 
-        people2 = new g.Layer( 'people', {  name: true, surname: true, age: true }  );
+        people2 = new g.Layer( 'people', { schema: commonSchema } );
         people2.hardLimitOnQueries = 2;
 
         people2.select( { sort: { age: 1 } }, function( err, results, total, grandTotal ){
@@ -735,8 +742,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                   g.people.select( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Sobily' } ] } },  function( err, results, total ){
 
-                    test.ok( typeof( results[ 0 ].name ) === 'undefined' || results[ 0 ].name === null || results[ 0 ].name ===  undefined );
-                    test.ok( typeof( results[ 0 ].age ) === 'undefined' || results[ 0 ].age === null || results[ 0 ].age ===  undefined );
+                    if( howMany === 1 ){
+                      test.ok( typeof( results[ 0 ].name ) === 'undefined' || results[ 0 ].name === null || results[ 0 ].name ===  undefined );
+                      test.ok( typeof( results[ 0 ].age ) === 'undefined' || results[ 0 ].age === null || results[ 0 ].age ===  undefined );
+                    }
+
                     test.equal( total, 1 );
 
                     test.done();

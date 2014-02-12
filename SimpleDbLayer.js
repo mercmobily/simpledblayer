@@ -14,11 +14,14 @@ var
 
 ;
 
-
 var SimpleDbLayer = declare( null, {
 
   db: null,
-  fields: {},
+
+  schema: {},
+  searchSchema: {},
+  SchemaError: Error,
+
   table: '',
   hardLimitOnQueries: 0,
 
@@ -28,30 +31,40 @@ var SimpleDbLayer = declare( null, {
 
     // Get 'options' ready
     if( typeof( options ) === 'undefined' || options == null ) options = {};
-    if( typeof( options.fields ) === 'undefined' || options.fields == null ) options.fields = {};
-    if( typeof( options.ref ) === 'undefined' || options.ref == null ) options.ref = {};
-    var fields = options.fields;
 
-    // Check parameters -- `table` and `fields` must be there
-    if( typeof( fields ) === 'undefined' ){
-      throw( new Error("SimpleDbLayer's constructor requires the 'fields' parameter in its constructor") );
-    }
+    // table needs to be defined
     if( typeof( table ) === 'undefined' ){
       throw( new Error("SimpleDbLayer's constructor requires the 'table' parameter in its constructor") );
     }
 
+    // schema needs to be defined
+    if( typeof( options.schema ) === 'undefined' ){
+      throw( new Error("SimpleDbLayer's constructor requires a 'schema' in options") );
+    }
+
+    // Allow passing of SchemaError as an option. This error will be thrown when
+    // the schema doesn't pass validation, with the `error` hash set
+    if( options.SchemaError ){
+      self.SchemaError = options.SchemaError;
+    }
+
+    // options.ref needs to be a non-null object
+    if( typeof( options.ref ) === 'undefined' || options.ref == null ) options.ref = {};
+ 
     // The `db` attribute can be passed to the constructor, or mixed in in advance
+    // Check that the class has 'db' set (prototype, or coming from the constructor)
     if( typeof( db ) !== 'undefined' ){
       self.db = db;
     }
-
-    // Check that the class has 'db' set (prototype, or coming from the constructor)
     if( typeof( self.db ) === 'undefined' ){
       throw( new Error("SimpleDbLayer's constructor need to have 'db' in their prototype") );
     }
 
-    // Set the parameters
-    self.fields = fields;
+
+
+    // Set the object's attributes: schema, searchSchema, table, ref
+    self.schema = options.schema;
+    self.searchSchema = typeof( options.searchSchema ) === 'undefined' || options.searchSchema === null ? self.schema : options.searchSchema;
     self.ref = options.ref;
     self.table = table;
   },
@@ -202,7 +215,7 @@ var SimpleDbLayer = declare( null, {
   },
 
   relocation: function( positionField, record, afterRecord, cb ){
-    console.log("REPOSITIONING BASING IT ON ", positionField, "RECORD: ", record, "TO GO AFTER:", afterRecord );
+    // console.log("REPOSITIONING BASING IT ON ", positionField, "RECORD: ", record, "TO GO AFTER:", afterRecord );
     cb( null, 0 );
   },
 

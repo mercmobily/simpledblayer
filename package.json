@@ -16,7 +16,8 @@
   "author": {
     "name": "Tony Mobily"
   },
- "dependencies": {
-    "simpledeclare": "0.3.x"
+  "dependencies": {
+    "simpledeclare": "0.3.x",
+    "async": "0.2.x"
   }
 }
