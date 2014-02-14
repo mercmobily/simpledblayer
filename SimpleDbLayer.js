@@ -10,8 +10,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 var 
   dummy
-, declare = require('simpledeclare')
 
+, declare = require('simpledeclare')
 ;
 
 var SimpleDbLayer = declare( null, {
@@ -21,6 +21,17 @@ var SimpleDbLayer = declare( null, {
   schema: {},
   searchSchema: {},
   SchemaError: Error,
+  
+  allTablesHash: {},
+  allSubTablesHash: {},
+  alertingSubTablesHash: {},
+  autoLoadTablesHash: {},
+  searchableTablesHash: {},
+  keywordTablesHash: {},
+  toBeAlertedTablesHash: {},
+
+
+  // TODO: tableRegistry: {}, // IN PROTOTYPE
 
   table: '',
   hardLimitOnQueries: 0,
@@ -61,12 +72,83 @@ var SimpleDbLayer = declare( null, {
     }
 
 
+    // Check that the same table is not managed by two different db layers
+    // Only ONE db layer per DB table
+    //if( self.tableRegistry[ table ] ){
+    //  throw new Error("Cannot instantiate two db objects on the same collection: " + table );
+    //}
+    //self.tableRegistry[ table ] = true;
 
     // Set the object's attributes: schema, searchSchema, table, ref
     self.schema = options.schema;
     self.searchSchema = typeof( options.searchSchema ) === 'undefined' || options.searchSchema === null ? self.schema : options.searchSchema;
-    self.ref = options.ref;
+    self.nested = options.nested || [];
     self.table = table;
+   
+    // Make up add ***TablesHash variables
+    self._makeTableHashes();
+
+  },
+
+
+  _makeTableHashes: function(){
+
+    var self = this;
+
+    // Make up all table hashes
+    self.allTablesHash = {};
+    self.allSubTablesHash = {};
+    self.alertingSubTablesHash = {};
+    self.autoLoadTablesHash = {};
+    self.searchableTablesHash = {};
+    self.keywordTablesHash = {};
+    self.toBeAlertedTablesHash = {};
+
+ 
+    var master = self;
+
+    function scanNested( layer, parent, nestedParams ){
+
+      // Add the table as a subtable
+      if( parent !== null ){
+
+        // This layer's object, including layer and nestedParams
+        var thisLayerObject = { layer: layer, nestedParams: nestedParams };
+
+        // Includes all tables in the tree
+        master.allTablesHash[ layer.table ] = thisLayerObject;
+
+        // Includes all sub-tables directly below
+        parent.allSubTablesHash[ layer.table ] = thisLayerObject;
+
+        // Includes all sub-tables that will need to be loaded
+        if( nestedParams.autoload ) parent.autoLoadTablesHash[ layer.table ] = thisLayerObject;
+
+        if( nestedParams.alertMaster ){
+
+          // Includes all tables in the tree that will possibly alert in case of change
+          master.alertingSubTablesHash[ layer.table ] = thisLayerObject;
+
+          // Includes for MASTER all tables that need to be alerted in cast of change
+          layer.toBeAlertedTablesHash[ master.table ] = thisLayerObject;
+        }
+
+        // Includes for MASTER all searchable tables
+        if( nestedParams.searchable ) master.searchableTablesHash[ layer.table ] = thisLayerObject;
+        
+        // Includes for MASTER all tables containing keywords to be indexed
+        if( nestedParams.keywords ) master.keywordTablesHash[ layer.table ] = thisLayerObject;
+      }
+
+      //console.log( "R OBJECT IS: ", layer.table, require('util').inspect( layer, { depth: 2 }  )  );
+      //if( layer.nested.length ) console.log("THERE ARE NESTED!");
+
+      layer.nested.forEach( function( nestedParams ){
+        scanNested( nestedParams.layer, layer, nestedParams );
+      });
+    }
+    scanNested( self, null, {} );
+
   },
 
 

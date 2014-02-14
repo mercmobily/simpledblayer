@@ -28,20 +28,11 @@ var peopleData = exports.peopleData = [
   { name: 'Daniela',   surname: 'Mobily',     age: 64 },
 ];
 
-var commonSchema = new SimpleSchema( {
-  name    : { type: 'string', searchable: true, sortable: true },
-  surname : { type: 'string', searchable: true, sortable: true },
-  age     : { type: 'number', searchable: true, sortable: true },
-});
-
-
 function i( v ){
   console.log( require( 'util' ).inspect( v, { depth: 10 } ) );
 }
 
 var compareCollections = function( test, a, b ){
-
-
 
   try {
     var a1 = [], a2, a3;
@@ -132,7 +123,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
     });
 
 
-    getDbInfo( function( err, db, DriverMixin ){
+    getDbInfo( function( err, db, SchemaMixin, DriverMixin ){
       if( err ){
         throw( new Error("Could not connect to db, aborting all tests") );
         process.exit();
@@ -142,6 +133,14 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       g.driver = {};
       g.driver.db = db;
       g.driver.DriverMixin = DriverMixin;
+      g.driver.SchemaMixin = SchemaMixin;
+
+     
+      g.commonPeopleSchema = new SchemaMixin( {
+        name   : { type: 'string', searchable: true, sortable: true },
+        surname: { type: 'string', searchable: true, sortable: true },
+        age    : { type: 'number', searchable: true, sortable: true },
+      });
 
       test.done();
     });
@@ -170,7 +169,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       try { 
         g.Layer = declare( [ SimpleDbLayer, g.driver.DriverMixin ], { db: g.driver.db });
 
-        g.people = new g.Layer( 'people', { schema: commonSchema } );
+        g.people = new g.Layer( 'people', { schema: g.commonPeopleSchema } );
 		  	test.ok( g.people );
 
       } catch( e ){
@@ -183,19 +182,19 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
       // Test that it works also by passing the db in the constructor
       var LayerNoDb = declare( [ SimpleDbLayer, g.driver.DriverMixin ] );
-      var peopleDb = new LayerNoDb( 'people', { schema: commonSchema } , g.driver.db );
+      var peopleDb = new LayerNoDb( 'people', { schema: g.commonPeopleSchema } , g.driver.db );
       test.ok( peopleDb );
       test.ok( peopleDb.db === g.people.db );
 
 
       // Test that passing `db` will override whatever was in the prototype
       var fakeDb = { collection: function(){ return "some" } };
-      var peopleRewriteDb = new g.Layer( 'people', { schema: commonSchema }, fakeDb );
+      var peopleRewriteDb = new g.Layer( 'people', { schema: g.commonPeopleSchema }, fakeDb );
       test.ok( fakeDb === peopleRewriteDb.db );
 
       // Test that not passing `db` anywhere throws
       test.throws( function(){        
-        new LayerNoDb( 'people', { schema: commonSchema } );
+        new LayerNoDb( 'people', { schema: g.commonPeopleSchema } );
       }, undefined, "Constructing a collection without definind DB in prototype or constructions should fail");
 
       test.done();
@@ -649,7 +648,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
 
-        people2 = new g.Layer( 'people', { schema: commonSchema } );
+        var people2 = new g.Layer( 'people', { schema: g.commonPeopleSchema } );
         people2.hardLimitOnQueries = 2;
 
         people2.select( { sort: { age: 1 } }, function( err, results, total, grandTotal ){
@@ -759,7 +758,153 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           })
         });
       })
-    }
+    },
+
+    "refs": function( test ){
+      clearAndPopulateTestCollection( g, function( err ){
+        test.ifError( err );
+
+        var PS = new g.driver.SchemaMixin( {
+          id      : { type: 'id', required: true, searchable: true },
+          name    : { type: 'string', searchable: true, sortable: true },
+          surname : { type: 'string', searchable: true, sortable: true },
+          age     : { type: 'number', searchable: true, sortable: true },
+        });
+
+        var AS = new g.driver.SchemaMixin( {
+          id       : { type: 'id', required: true, searchable: true },
+          personId : { type: 'id', required: true, searchable: true },
+          street   : { type: 'string', searchable: true, sortable: true },
+          city     : { type: 'string', searchable: true },
+        });
+
+        var NS = new g.driver.SchemaMixin( {
+          id       : { type: 'id', required: true, searchable: true },
+          personId : { type: 'id', required: true, searchable: true },
+          addressId: { type: 'id', required: true, searchable: true },
+          text     : { type: 'string', searchable: true, sortable: true },
+        });
+
+        var ES = new g.driver.SchemaMixin( {
+          id       : { type: 'id', required: true, searchable: true },
+          personId : { type: 'id', required: true, searchable: true },
+          email    : { type: 'string', searchable: true, sortable: true },
+        });
+
+
+        var notesR = new g.Layer( 'notesR', { schema: NS } );
+
+        var emailsR = new g.Layer( 'emailsR', { schema: ES } );
+
+        var addressesR = new g.Layer( 'addressesR', { schema: AS, nested: [
+
+          { 
+            layer: notesR,
+            join: { id: 'addressId' }, 
+            type: 'multiple',
+            searchable: true,
+            autoload: true, 
+            keywords: true,
+            alertMaster: false,
+          }
+
+        ] } );
+
+        var peopleR = new g.Layer( 'peopleR', { schema: PS, nested: [
+
+          {
+            layer: addressesR,
+            join: { id: 'personId' },
+            type: 'multiple',
+            searchable: true,
+            autoload: true,
+            keywords: true,
+            alertMaster: true,
+          },
+
+          { 
+            layer: emailsR,
+            join: { id: 'emailId' }, 
+            type: 'multiple',
+            searchable: true,
+            autoload: false, 
+            keywords: true,
+            alertMaster: true,
+          }
+
+
+        ] } );
+
+        
+        //[ peopleR, addressesR, emailsR, notesR ].forEach( function( layer ){
+        //   console.log("\n\n\n****************\nIT IS: ", layer.table, layer );
+        //});
+ 
+        // Zap DB and make up records ready to be added
+        function prepareGround( cb ){
+
+          // Zap whatever was there
+          peopleR.delete( { }, { multi: true }, function( err ){
+            test.ifError( err );
+
+            addressesR.delete( { }, { multi: true }, function( err ){
+              test.ifError( err );
+
+              var p = { name: 'Chiara',    surname: 'Mobily',  age: 22 };
+              g.driver.SchemaMixin.makeId( p, function( err, personId ) {
+                test.ifError( err );
+
+                p.id = personId;
+
+                var a1 = { personId: personId, street: 'bitton', city: 'perth' };
+                g.driver.SchemaMixin.makeId( a1, function( err, addressId1 ) {
+                  test.ifError( err );
+        
+                  a1.id = addressId1;
+
+                  var a2 = { personId: personId, street: 'ivermey', city: 'perth' };
+                  g.driver.SchemaMixin.makeId( a2, function( err, addressId2 ) {
+                    test.ifError( err );
+
+                    a2.id = addressId2;
+
+                    cb( p, a1, a2 );
+                  });
+                });
+              });
+            });
+          });
+        }
+        
+        // Get started with the actual adding and testing
+        prepareGround( function( p, a1, a2 ){
+
+          peopleR.insert( p, function( err ){
+            test.ifError( err );
+
+            addressesR.insert( a1, function( err ){
+              test.ifError( err );
+
+              addressesR.insert( a2, function( err ){
+                test.ifError( err );
+                
+
+
+      
+                test.done();
+              });
+            });
+          });
+        });
+
+
+
+      });
+    },
+
+
+
+
   }
 
   if( typeof( makeExtraTests ) === 'function' ){
