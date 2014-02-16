@@ -23,12 +23,12 @@ var SimpleDbLayer = declare( null, {
   SchemaError: Error,
   
   allTablesHash: {},
-  allSubTablesHash: {},
-  alertingSubTablesHash: {},
+  childrenTablesHash: {},
+  //alertingSubTablesHash: {},
   autoLoadTablesHash: {},
   searchableTablesHash: {},
   keywordTablesHash: {},
-  toBeAlertedTablesHash: {},
+  parentTablesHash: {},
 
 
   // TODO: tableRegistry: {}, // IN PROTOTYPE
@@ -97,12 +97,12 @@ var SimpleDbLayer = declare( null, {
 
     // Make up all table hashes
     self.allTablesHash = {};
-    self.allSubTablesHash = {};
-    self.alertingSubTablesHash = {};
+    self.childrenTablesHash = {};
+    //self.alertingSubTablesHash = {};
     self.autoLoadTablesHash = {};
     self.searchableTablesHash = {};
     self.keywordTablesHash = {};
-    self.toBeAlertedTablesHash = {};
+    self.parentTablesHash = {};
 
  
     var master = self;
@@ -119,18 +119,20 @@ var SimpleDbLayer = declare( null, {
         master.allTablesHash[ layer.table ] = thisLayerObject;
 
         // Includes all sub-tables directly below
-        parent.allSubTablesHash[ layer.table ] = thisLayerObject;
+        parent.childrenTablesHash[ layer.table ] = thisLayerObject;
 
         // Includes all sub-tables that will need to be loaded
         if( nestedParams.autoload ) parent.autoLoadTablesHash[ layer.table ] = thisLayerObject;
 
-        if( nestedParams.alertMaster ){
+        if( nestedParams.alertParent ){
 
           // Includes all tables in the tree that will possibly alert in case of change
-          master.alertingSubTablesHash[ layer.table ] = thisLayerObject;
+          //master.alertingSubTablesHash[ layer.table ] = thisLayerObject;
 
           // Includes for MASTER all tables that need to be alerted in cast of change
-          layer.toBeAlertedTablesHash[ master.table ] = thisLayerObject;
+          //layer.toBeAlertedTablesHash[ master.table ] = master;
+          
+          layer.parentTablesHash[ parent.table ] = { layer: parent, nestedParams: nestedParams };
         }
 
         // Includes for MASTER all searchable tables
@@ -207,7 +209,6 @@ var SimpleDbLayer = declare( null, {
       } else if( sr.from === -1 && sr.to !== -1 && sr.limit !== -1 ){
         sr.from = 0;
       }
-
 
       // Make sure "limit" never goes over
       if(  sr.limit != 0 && sr.from + sr.limit - 1 > sr.to ){
