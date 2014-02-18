@@ -785,6 +785,14 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           text     : { type: 'string', searchable: true, sortable: true },
         });
 
+        var DS = new g.driver.SchemaMixin( {
+          id       : { type: 'id', required: true, searchable: true },
+          personId : { type: 'id', required: true, searchable: true },
+          addressId: { type: 'id', required: true, searchable: true },
+          delivery : { type: 'string', searchable: true, sortable: true },
+        });
+
+
         var ES = new g.driver.SchemaMixin( {
           id       : { type: 'id', required: true, searchable: true },
           personId : { type: 'id', required: true, searchable: true },
@@ -794,18 +802,30 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
         var notesR = new g.Layer( 'notesR', { schema: NS } );
 
+        var deliveriesR = new g.Layer( 'deliveriesR', { schema: DS } );
+
         var emailsR = new g.Layer( 'emailsR', { schema: ES } );
 
         var addressesR = new g.Layer( 'addressesR', { schema: AS, nested: [
 
           { 
             layer: notesR,
-            join: { id: 'addressId' }, 
+            join: { addressId: 'id' }, 
             type: 'multiple',
             searchable: true,
             autoload: true, 
             keywords: true,
-            alertMaster: false,
+            alertParent: true,
+          },
+
+          { 
+            layer: deliveriesR,
+            join: { addressId: 'id' }, 
+            type: 'multiple',
+            searchable: true,
+            autoload: true, 
+            keywords: true,
+            alertParent: true,
           }
 
         ] } );
@@ -814,22 +834,22 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
           {
             layer: addressesR,
-            join: { id: 'personId' },
+            join: { personId: 'id' },
             type: 'multiple',
             searchable: true,
             autoload: true,
             keywords: true,
-            alertMaster: true,
+            alertParent: true,
           },
 
           { 
             layer: emailsR,
-            join: { id: 'emailId' }, 
+            join: { emailId: 'id' }, 
             type: 'multiple',
             searchable: true,
             autoload: false, 
             keywords: true,
-            alertMaster: true,
+            alertParent: true,
           }
 
 
@@ -850,25 +870,53 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             addressesR.delete( { }, { multi: true }, function( err ){
               test.ifError( err );
 
-              var p = { name: 'Chiara',    surname: 'Mobily',  age: 22 };
-              g.driver.SchemaMixin.makeId( p, function( err, personId ) {
+              notesR.delete( { }, { multi: true }, function( err ){
                 test.ifError( err );
 
-                p.id = personId;
-
-                var a1 = { personId: personId, street: 'bitton', city: 'perth' };
-                g.driver.SchemaMixin.makeId( a1, function( err, addressId1 ) {
+                deliveriesR.delete( { }, { multi: true }, function( err ){
                   test.ifError( err );
-        
-                  a1.id = addressId1;
 
-                  var a2 = { personId: personId, street: 'ivermey', city: 'perth' };
-                  g.driver.SchemaMixin.makeId( a2, function( err, addressId2 ) {
+                  emailsR.delete( { }, { multi: true }, function( err ){
                     test.ifError( err );
 
-                    a2.id = addressId2;
+                    var p = { name: 'Chiara',    surname: 'Mobily',  age: 22 };
+                    g.driver.SchemaMixin.makeId( p, function( err, personId ) {
+                      test.ifError( err );
+                      p.id = personId;
 
-                    cb( p, a1, a2 );
+                      var a1 = { personId: personId, street: 'bitton', city: 'perth' };
+                      g.driver.SchemaMixin.makeId( a1, function( err, addressId1 ) {
+                        test.ifError( err );
+                        a1.id = addressId1;
+
+                        var a2 = { personId: personId, street: 'ivermey', city: 'perth' };
+                        g.driver.SchemaMixin.makeId( a2, function( err, addressId2 ) {
+                          test.ifError( err );
+                          a2.id = addressId2;
+
+                          var n1 = { personId: personId, addressId: addressId1, text: 'Note 1 blah blah' };
+                          g.driver.SchemaMixin.makeId( n1, function( err, notesId1 ) {
+                            test.ifError( err );
+                            n1.id = notesId1;
+
+                            var d1 = { personId: personId, addressId: addressId1, delivery: 'Delivery text 1' };
+                            g.driver.SchemaMixin.makeId( d1, function( err, deliveryId1 ) {
+                              test.ifError( err );
+                              d1.id = deliveryId1;
+
+                              var d2 = { personId: personId, addressId: addressId1, delivery: 'Delivery text 2' };
+                              g.driver.SchemaMixin.makeId( d2, function( err, deliveryId2 ) {
+                                test.ifError( err );
+                                d2.id = deliveryId2;
+
+                                cb( p, a1, a2, n1, d1, d2 );
+
+                              });
+                            });
+                          });
+                        });
+                      });
+                    });
                   });
                 });
               });
@@ -877,7 +925,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         }
         
         // Get started with the actual adding and testing
-        prepareGround( function( p, a1, a2 ){
+        prepareGround( function( p, a1, a2, n1, d1, d2 ){
 
           peopleR.insert( p, function( err ){
             test.ifError( err );
@@ -887,11 +935,24 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
               addressesR.insert( a2, function( err ){
                 test.ifError( err );
+
+                deliveriesR.insert( d1, function( err ){
+                  test.ifError( err );
+
+                  deliveriesR.insert( d2, function( err ){
+                    test.ifError( err );
                 
-
-
-      
-                test.done();
+                    notesR.insert( n1, function( err ){
+                      test.ifError( err );
+     
+                      peopleR._getChildrenData( p, 'addressesR', { upperCase: true }, function( err, result ){
+                        //console.log("******** p after the cure: ", require('util').inspect( p, { depth: 10 }  ) );
+                        // console.log("******** Result: ", require('util').inspect( result, { depth: 10 }  ) );
+                        test.done();
+                      });
+                    });
+                  });
+                });
               });
             });
           });
