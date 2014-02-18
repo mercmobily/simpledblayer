@@ -24,16 +24,14 @@ var SimpleDbLayer = declare( null, {
   
   allTablesHash: {},
   childrenTablesHash: {},
-  //alertingSubTablesHash: {},
   autoLoadTablesHash: {},
   searchableTablesHash: {},
   keywordTablesHash: {},
   parentTablesHash: {},
 
-
-  // TODO: tableRegistry: {}, // IN PROTOTYPE
-
   table: '',
+  childrenField: '_children',
+
   hardLimitOnQueries: 0,
 
   constructor: function( table,  options, db ){
