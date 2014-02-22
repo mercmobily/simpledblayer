@@ -96,7 +96,8 @@ var SimpleDbLayer = declare( null, {
     // Make up all table hashes
     self.allTablesHash = {};
     self.childrenTablesHash = {};
-    //self.alertingSubTablesHash = {};
+    self.lookupChildrenTablesHash = {};
+    self.multipleChildrenTablesHash = {};
     self.autoLoadTablesHash = {};
     self.searchableTablesHash = {};
     self.keywordTablesHash = {};
@@ -118,11 +119,13 @@ var SimpleDbLayer = declare( null, {
 
         // Includes all sub-tables directly below
         parent.childrenTablesHash[ layer.table ] = thisLayerObject;
+        if( nestedParams.type === 'lookup' ) parent.lookupChildrenTablesHash[ layer.table ] = thisLayerObject;
+        if( nestedParams.type === 'multiple' ) parent.multipleChildrenTablesHash[ layer.table ] = thisLayerObject;
 
         // Includes all sub-tables that will need to be loaded
         if( nestedParams.autoload ) parent.autoLoadTablesHash[ layer.table ] = thisLayerObject;
 
-        if( nestedParams.alertParent ){
+        //if( nestedParams.alertParent ){
 
           // Includes all tables in the tree that will possibly alert in case of change
           //master.alertingSubTablesHash[ layer.table ] = thisLayerObject;
@@ -131,7 +134,7 @@ var SimpleDbLayer = declare( null, {
           //layer.toBeAlertedTablesHash[ master.table ] = master;
           
           layer.parentTablesHash[ parent.table ] = { layer: parent, nestedParams: nestedParams };
-        }
+        //}
 
         // Includes for MASTER all searchable tables
         if( nestedParams.searchable ) master.searchableTablesHash[ layer.table ] = thisLayerObject;
