@@ -22,12 +22,10 @@ var SimpleDbLayer = declare( null, {
   searchSchema: {},
   SchemaError: Error,
   
-  allTablesHash: {},
   childrenTablesHash: {},
-  autoLoadTablesHash: {},
-  searchableTablesHash: {},
-  keywordTablesHash: {},
-  parentTablesHash: {},
+  lookupChildrenTablesHash: {},
+  multipleChildrenTablesHash: {},
+  parentTablesArray: {},
 
   table: '',
   childrenField: '_children',
@@ -93,61 +91,52 @@ var SimpleDbLayer = declare( null, {
 
     var self = this;
 
-    // Make up all table hashes
-    self.allTablesHash = {};
+    // Make up all table hashes and arrays
+
     self.childrenTablesHash = {};
     self.lookupChildrenTablesHash = {};
     self.multipleChildrenTablesHash = {};
-    self.autoLoadTablesHash = {};
-    self.searchableTablesHash = {};
-    self.keywordTablesHash = {};
-    self.parentTablesHash = {};
-
+    self.parentTablesArray = [];
  
     var master = self;
 
-    function scanNested( layer, parent, nestedParams ){
+    function scanNested( childLayer, parent, childNestedParams ){
 
       // Add the table as a subtable
       if( parent !== null ){
 
-        // This layer's object, including layer and nestedParams
-        var thisLayerObject = { layer: layer, nestedParams: nestedParams };
+        // Work out subName, depending on the type of the child.
+        // - For multiple 1:n children, the subName can just be the child's table name
+        // - For single lookups, since there can be more children lookups pointing to the same table,
+        //   the key will need to be the parentField name
+        // This way, each record will have a list of children with a unique key, which will either
+        // lead to a lookup or a multiple relationship.
+        var subName;
+        switch( childNestedParams.type ){
+          case 'multiple': subName = childLayer.table; break;
+          case 'lookup': subName = childNestedParams.parentField; break;
+        }
 
-        // Includes all tables in the tree
-        master.allTablesHash[ layer.table ] = thisLayerObject;
+        // Adding this child to the parent
+        // (With the right subkey)
 
-        // Includes all sub-tables directly below
-        parent.childrenTablesHash[ layer.table ] = thisLayerObject;
-        if( nestedParams.type === 'lookup' ) parent.lookupChildrenTablesHash[ layer.table ] = thisLayerObject;
-        if( nestedParams.type === 'multiple' ) parent.multipleChildrenTablesHash[ layer.table ] = thisLayerObject;
+        var thisLayerObject = { layer: childLayer, nestedParams: childNestedParams };
+        parent.childrenTablesHash[ subName ] =  thisLayerObject;
+        if( childNestedParams.type === 'lookup' ) parent.lookupChildrenTablesHash[ subName ] = thisLayerObject;
+        if( childNestedParams.type === 'multiple' ) parent.multipleChildrenTablesHash [ subName ] = thisLayerObject;
 
-        // Includes all sub-tables that will need to be loaded
-        if( nestedParams.autoload ) parent.autoLoadTablesHash[ layer.table ] = thisLayerObject;
+        // Adding this parent to the child
+        // (Just an array, since it's just a generic list of fathers)
 
-        //if( nestedParams.alertParent ){
-
-          // Includes all tables in the tree that will possibly alert in case of change
-          //master.alertingSubTablesHash[ layer.table ] = thisLayerObject;
-
-          // Includes for MASTER all tables that need to be alerted in cast of change
-          //layer.toBeAlertedTablesHash[ master.table ] = master;
-          
-          layer.parentTablesHash[ parent.table ] = { layer: parent, nestedParams: nestedParams };
-        //}
-
-        // Includes for MASTER all searchable tables
-        if( nestedParams.searchable ) master.searchableTablesHash[ layer.table ] = thisLayerObject;
-        
-        // Includes for MASTER all tables containing keywords to be indexed
-        if( nestedParams.keywords ) master.keywordTablesHash[ layer.table ] = thisLayerObject;
+        childLayer.parentTablesArray.push( { layer: parent, nestedParams: childNestedParams } );
+ 
       }
 
       //console.log( "R OBJECT IS: ", layer.table, require('util').inspect( layer, { depth: 2 }  )  );
       //if( layer.nested.length ) console.log("THERE ARE NESTED!");
 
-      layer.nested.forEach( function( nestedParams ){
-        scanNested( nestedParams.layer, layer, nestedParams );
+      childLayer.nested.forEach( function( np ){
+        scanNested( np.layer, childLayer, np );
       });
     }
     scanNested( self, null, {} );
