@@ -834,7 +834,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             searchable: true,
             autoload: true, 
             keywords: true,
-            alertParent: true,
           },
 
         ] } );
@@ -847,9 +846,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             join: { addressId: 'id' }, 
             type: 'multiple',
             searchable: true,
-            autoload: false, 
+            autoload: true, 
             keywords: true,
-            alertParent: true,
           },
 
           { 
@@ -859,18 +857,16 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             searchable: true,
             autoload: true, 
             keywords: true,
-            alertParent: true,
           },
 
           { 
             layer: configR,
             type: 'lookup',
+            parentField: 'configId',
             join: { id: 'configId' }, 
-            loadAs: 'config',
             searchable: true,
             autoload: true, 
             keywords: true,
-            alertParent: true,
           },
 
         ] } );
@@ -884,7 +880,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             searchable: true,
             autoload: true,
             keywords: true,
-            alertParent: true,
           },
 
           { 
@@ -894,7 +889,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             searchable: true,
             autoload: false, 
             keywords: true,
-            alertParent: true,
           }
 
         ] } );
