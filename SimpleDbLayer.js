@@ -14,6 +14,11 @@ var
 , declare = require('simpledeclare')
 ;
 
+var consolelog = function(){
+  //console.log.apply( console, arguments );
+}
+
+
 var SimpleDbLayer = declare( null, {
 
   db: null,
@@ -55,9 +60,6 @@ var SimpleDbLayer = declare( null, {
       self.SchemaError = options.SchemaError;
     }
 
-    // options.ref needs to be a non-null object
-    if( typeof( options.ref ) === 'undefined' || options.ref == null ) options.ref = {};
- 
     // The `db` attribute can be passed to the constructor, or mixed in in advance
     // Check that the class has 'db' set (prototype, or coming from the constructor)
     if( typeof( db ) !== 'undefined' ){
@@ -75,13 +77,12 @@ var SimpleDbLayer = declare( null, {
     //}
     //self.tableRegistry[ table ] = true;
 
-    // Set the object's attributes: schema, searchSchema, table, ref
+    // Set the object's attributes: schema, nested, table
     self.schema = options.schema;
-    self.searchSchema = typeof( options.searchSchema ) === 'undefined' || options.searchSchema === null ? self.schema : options.searchSchema;
+    //self.searchSchema = typeof( options.searchSchema ) === 'undefined' || options.searchSchema === null ? self.schema : options.searchSchema;
     self.nested = options.nested || [];
     self.table = table;
-   
-    // Make up add ***TablesHash variables
+  
     self._makeTableHashes();
 
   },
@@ -100,46 +101,41 @@ var SimpleDbLayer = declare( null, {
  
     var master = self;
 
-    function scanNested( childLayer, parent, childNestedParams ){
+    self.nested.forEach( function( childNestedParams ){
 
-      // Add the table as a subtable
-      if( parent !== null ){
+      var parent = self;
+      var childLayer = childNestedParams.layer;
 
-        // Work out subName, depending on the type of the child.
-        // - For multiple 1:n children, the subName can just be the child's table name
-        // - For single lookups, since there can be more children lookups pointing to the same table,
-        //   the key will need to be the parentField name
-        // This way, each record will have a list of children with a unique key, which will either
-        // lead to a lookup or a multiple relationship.
-        var subName;
-        switch( childNestedParams.type ){
-          case 'multiple': subName = childLayer.table; break;
-          case 'lookup': subName = childNestedParams.parentField; break;
-        }
+      consolelog("Scanning", parent.table, ", nested params:", childNestedParams );
+      consolelog("It has a parent. Setting info for", parent.table );
 
-        // Adding this child to the parent
-        // (With the right subkey)
-
-        var thisLayerObject = { layer: childLayer, nestedParams: childNestedParams };
-        parent.childrenTablesHash[ subName ] =  thisLayerObject;
-        if( childNestedParams.type === 'lookup' ) parent.lookupChildrenTablesHash[ subName ] = thisLayerObject;
-        if( childNestedParams.type === 'multiple' ) parent.multipleChildrenTablesHash [ subName ] = thisLayerObject;
-
-        // Adding this parent to the child
-        // (Just an array, since it's just a generic list of fathers)
-
-        childLayer.parentTablesArray.push( { layer: parent, nestedParams: childNestedParams } );
- 
+      // Work out subName, depending on the type of the child.
+      // - For multiple 1:n children, the subName can just be the child's table name
+      // - For single lookups, since there can be more children lookups pointing to the same table,
+      //   the key will need to be the parentField name
+      // This way, each record will have a list of children with a unique key, which will either
+      // lead to a lookup or a multiple relationship.
+      var subName;
+      switch( childNestedParams.type ){
+        case 'multiple': subName = childLayer.table; break;
+        case 'lookup': subName = childNestedParams.parentField; break;
       }
 
-      //console.log( "R OBJECT IS: ", layer.table, require('util').inspect( layer, { depth: 2 }  )  );
-      //if( layer.nested.length ) console.log("THERE ARE NESTED!");
+      // Adding this child to the parent
+      // (With the right subkey)
 
-      childLayer.nested.forEach( function( np ){
-        scanNested( np.layer, childLayer, np );
-      });
-    }
-    scanNested( self, null, {} );
+      var thisLayerObject = { layer: childLayer, nestedParams: childNestedParams };
+      parent.childrenTablesHash[ subName ] =  thisLayerObject;
+      if( childNestedParams.type === 'lookup' ) parent.lookupChildrenTablesHash[ subName ] = thisLayerObject;
+      if( childNestedParams.type === 'multiple' ) parent.multipleChildrenTablesHash [ subName ] = thisLayerObject;
+
+      // Adding this parent to the child
+      // (Just an array, since it's just a generic list of fathers)
+
+      consolelog("Adding", parent.table, " as a parent of", childLayer.table );
+
+      childLayer.parentTablesArray.push( { layer: parent, nestedParams: childNestedParams } );
+    });
 
   },
 
