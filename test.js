@@ -764,212 +764,232 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
 
-        var PS = new g.driver.SchemaMixin( {
-          id      : { type: 'id', required: true, searchable: true },
-          name    : { type: 'string', searchable: true, sortable: true },
-          surname : { type: 'string', searchable: true, sortable: true },
-          age     : { type: 'number', searchable: true, sortable: true },
+        var notesR = new g.Layer( 'notesR', {
+          schema: new g.driver.SchemaMixin( {
+            id       : { type: 'id', required: true, searchable: true },
+            personId : { type: 'id', required: true, searchable: true },
+            addressId: { type: 'id', required: true, searchable: true },
+            text     : { type: 'string', searchable: true, sortable: true },
+          })
         });
 
-        var AS = new g.driver.SchemaMixin( {
-          id       : { type: 'id', required: true, searchable: true },
-          personId : { type: 'id', required: true, searchable: true },
-          street   : { type: 'string', searchable: true, sortable: true },
-          city     : { type: 'string', searchable: true },
-          configId : { type: 'id', required: false, searchable: true },
+        var deliveriesR = new g.Layer( 'deliveriesR', {
+          schema: new g.driver.SchemaMixin( {
+            id       : { type: 'id', required: true, searchable: true },
+            personId : { type: 'id', required: true, searchable: true },
+            addressId: { type: 'id', required: true, searchable: true },
+            delivery : { type: 'string', searchable: true, sortable: true },
+          })
         });
 
-        var NS = new g.driver.SchemaMixin( {
-          id       : { type: 'id', required: true, searchable: true },
-          personId : { type: 'id', required: true, searchable: true },
-          addressId: { type: 'id', required: true, searchable: true },
-          text     : { type: 'string', searchable: true, sortable: true },
+        var emailsR = new g.Layer( 'emailsR', {
+          schema: new g.driver.SchemaMixin( {
+            id       : { type: 'id', required: true, searchable: true },
+            personId : { type: 'id', required: true, searchable: true },
+            email    : { type: 'string', searchable: true, sortable: true },
+          })
         });
 
-        var DS = new g.driver.SchemaMixin( {
-          id       : { type: 'id', required: true, searchable: true },
-          personId : { type: 'id', required: true, searchable: true },
-          addressId: { type: 'id', required: true, searchable: true },
-          delivery : { type: 'string', searchable: true, sortable: true },
+        var fieldsR = new g.Layer( 'fieldsR', {
+          schema: new g.driver.SchemaMixin( {
+            id       : { type: 'id', required: true, searchable: true },
+            configId : { type: 'id', required: true, searchable: true },
+            field    : { type: 'string', searchable: true, sortable: true },
+            value    : { type: 'string', searchable: true, sortable: true },
+          })
         });
 
-        var ES = new g.driver.SchemaMixin( {
-          id       : { type: 'id', required: true, searchable: true },
-          personId : { type: 'id', required: true, searchable: true },
-          email    : { type: 'string', searchable: true, sortable: true },
+        var configR = new g.Layer( 'configR', {
+          schema: new g.driver.SchemaMixin( {
+            id       : { type: 'id', required: true, searchable: true },
+            config1  : { type: 'string', searchable: true, sortable: true },
+            config2  : { type: 'string', searchable: true, sortable: true },
+          }),
+          nested: [
+           { 
+             layer: fieldsR,
+             join: { configId: 'id' }, 
+             type: 'multiple',
+             searchable: true,
+             autoload: true, 
+             keywords: true,
+           },
+         ]
         });
 
-        var CS = new g.driver.SchemaMixin( {
-          id       : { type: 'id', required: true, searchable: true },
-          config1  : { type: 'string', searchable: true, sortable: true },
-          config2  : { type: 'string', searchable: true, sortable: true },
+        var addressesR = new g.Layer( 'addressesR', {
+          schema: 
+            new g.driver.SchemaMixin( {
+              id       : { type: 'id', required: true, searchable: true },
+              personId : { type: 'id', required: true, searchable: true },
+              street   : { type: 'string', searchable: true, sortable: true },
+              city     : { type: 'string', searchable: true },
+              configId : { type: 'id', required: false, searchable: true },
+            }),
+          nested: [
+            { 
+              layer: notesR,
+              join: { addressId: 'id' }, 
+              type: 'multiple',
+              searchable: true,
+              autoload: true, 
+              keywords: true,
+            },
+
+            { 
+              layer: deliveriesR,
+              join: { addressId: 'id' }, 
+              type: 'multiple',
+              searchable: true,
+              autoload: true, 
+              keywords: true,
+            },
+
+            { 
+              layer: configR,
+              type: 'lookup',
+              parentField: 'configId',
+              join: { id: 'configId' }, 
+              searchable: true,
+              autoload: true, 
+              keywords: true,
+            },
+          ]
         });
 
-        var FS = new g.driver.SchemaMixin( {
-          id       : { type: 'id', required: true, searchable: true },
-          configId : { type: 'id', required: true, searchable: true },
-          field    : { type: 'string', searchable: true, sortable: true },
-          value    : { type: 'string', searchable: true, sortable: true },
+
+        var peopleR = new g.Layer( 'peopleR', {
+          schema: new g.driver.SchemaMixin( {
+            id      : { type: 'id', required: true, searchable: true },
+            name    : { type: 'string', searchable: true, sortable: true },
+            surname : { type: 'string', searchable: true, sortable: true },
+            age     : { type: 'number', searchable: true, sortable: true },
+          }),
+          nested: [
+           {
+             layer: addressesR,
+             join: { personId: 'id' },
+             type: 'multiple',
+             searchable: true,
+             autoload: true,
+             keywords: true,
+           },
+
+           { 
+             layer: emailsR,
+             join: { emailId: 'id' }, 
+             type: 'multiple',
+             searchable: true,
+             autoload: false, 
+             keywords: true,
+           }
+          ]
         });
-
-
-
-
-
-
-        var notesR = new g.Layer( 'notesR', { schema: NS } );
-
-        var deliveriesR = new g.Layer( 'deliveriesR', { schema: DS } );
-
-        var emailsR = new g.Layer( 'emailsR', { schema: ES } );
-
-
-        var fieldsR = new g.Layer( 'fieldsR', { schema: FS } );
-
-        var configR = new g.Layer( 'configR', { schema: CS, nested: [
-          { 
-            layer: fieldsR,
-            join: { configId: 'id' }, 
-            type: 'multiple',
-            searchable: true,
-            autoload: true, 
-            keywords: true,
-          },
-
-        ] } );
-
-
-        var addressesR = new g.Layer( 'addressesR', { schema: AS, nested: [
-
-          { 
-            layer: notesR,
-            join: { addressId: 'id' }, 
-            type: 'multiple',
-            searchable: true,
-            autoload: true, 
-            keywords: true,
-          },
-
-          { 
-            layer: deliveriesR,
-            join: { addressId: 'id' }, 
-            type: 'multiple',
-            searchable: true,
-            autoload: true, 
-            keywords: true,
-          },
-
-          { 
-            layer: configR,
-            type: 'lookup',
-            parentField: 'configId',
-            join: { id: 'configId' }, 
-            searchable: true,
-            autoload: true, 
-            keywords: true,
-          },
-
-        ] } );
-
-        var peopleR = new g.Layer( 'peopleR', { schema: PS, nested: [
-
-          {
-            layer: addressesR,
-            join: { personId: 'id' },
-            type: 'multiple',
-            searchable: true,
-            autoload: true,
-            keywords: true,
-          },
-
-          { 
-            layer: emailsR,
-            join: { emailId: 'id' }, 
-            type: 'multiple',
-            searchable: true,
-            autoload: false, 
-            keywords: true,
-          }
-
-        ] } );
 
         
-        //[ peopleR, addressesR, emailsR, notesR ].forEach( function( layer ){
-        //   console.log("\n\n\n****************\nIT IS: ", layer.table, layer );
-        //});
- 
         // Zap DB and make up records ready to be added
+ 
         function prepareGround( cb ){
 
-          // Zap whatever was there
-          peopleR.delete( { }, { multi: true }, function( err ){
-            test.ifError( err );
+          async.each(
+            [ peopleR, addressesR, notesR, deliveriesR, emailsR, fieldsR, configR ],
+            function( item, cb){
+              item.delete( { }, { multi: true }, cb );
+            },
+            function( err ){
 
-            addressesR.delete( { }, { multi: true }, function( err ){
-              test.ifError( err );
-
-              notesR.delete( { }, { multi: true }, function( err ){
+              var ops = [];
+              
+              var c = {
+                config1: 'CONFIG ONE',
+                config2: 'CONFIG TWO'
+              };
+              g.driver.SchemaMixin.makeId( c, function( err, configId ) {
                 test.ifError( err );
+                c.id = configId;
 
-                deliveriesR.delete( { }, { multi: true }, function( err ){
+                ops.push( { table: configR, op: 'insert', data: c } );
+
+                var p = {
+                  name   : 'Chiara',
+                  surname: 'Mobily',
+                  age: 22
+                };
+                g.driver.SchemaMixin.makeId( p, function( err, personId ) {
                   test.ifError( err );
+                  p.id = personId;
 
-                  emailsR.delete( { }, { multi: true }, function( err ){
+                  ops.push( { table: peopleR, op: 'insert', data: p } );
+
+                  var a1 = {
+                    personId: personId,
+                    street  : 'bitton',
+                    city    : 'perth',
+                    configId: configId
+                  };
+                  g.driver.SchemaMixin.makeId( a1, function( err, addressId1 ) {
                     test.ifError( err );
+                    a1.id = addressId1;
 
-                    fieldsR.delete( { }, { multi: true }, function( err ){
+                    ops.push( { table: addressesR, op: 'insert', data: a1 } );
+
+                    var a2 = {
+                      personId: personId,
+                      street  : 'ivermey',
+                      city    : 'perth'
+                    };
+                    g.driver.SchemaMixin.makeId( a2, function( err, addressId2 ) {
                       test.ifError( err );
+                      a2.id = addressId2;
 
-                      configR.delete( { }, { multi: true }, function( err ){
+                      ops.push( { table: addressesR, op: 'insert', data: a2 } );
+
+                      var n1 = {
+                        personId : personId,
+                        addressId: addressId1, 
+                        text     : 'Note 1 blah blah'
+                      };
+                      g.driver.SchemaMixin.makeId( n1, function( err, notesId1 ) {
                         test.ifError( err );
+                        n1.id = notesId1;
 
-                        var c = { config1: 'CONFIG ONE', config2: 'CONFIG TWO' };
-                        g.driver.SchemaMixin.makeId( c, function( err, configId ) {
+                        ops.push( { table: notesR, op: 'insert', data: n1 } );
+
+                        var d1 = {
+                          personId : personId,
+                          addressId: addressId1,
+                          delivery : 'Delivery text 1'
+                        };
+                        g.driver.SchemaMixin.makeId( d1, function( err, deliveryId1 ) {
                           test.ifError( err );
-                          c.id = configId;
+                          d1.id = deliveryId1;
 
-                          var p = { name: 'Chiara',    surname: 'Mobily',  age: 22 };
-                          g.driver.SchemaMixin.makeId( p, function( err, personId ) {
+                          ops.push( { table: deliveriesR, op: 'insert', data: d1 } );
+
+                          var d2 = {
+                            personId : personId,
+                            addressId: addressId1,
+                            delivery : 'Delivery text 2'
+                          };
+                          g.driver.SchemaMixin.makeId( d2, function( err, deliveryId2 ) {
                             test.ifError( err );
-                            p.id = personId;
-
-                            var a1 = { personId: personId, street: 'bitton', city: 'perth', configId: configId };
-                            g.driver.SchemaMixin.makeId( a1, function( err, addressId1 ) {
-                              test.ifError( err );
-                              a1.id = addressId1;
-
-                              var a2 = { personId: personId, street: 'ivermey', city: 'perth' };
-                              g.driver.SchemaMixin.makeId( a2, function( err, addressId2 ) {
-                                test.ifError( err );
-                                a2.id = addressId2;
-
-                                var n1 = { personId: personId, addressId: addressId1, text: 'Note 1 blah blah' };
-                                g.driver.SchemaMixin.makeId( n1, function( err, notesId1 ) {
-                                  test.ifError( err );
-                                  n1.id = notesId1;
-
-                                  var d1 = { personId: personId, addressId: addressId1, delivery: 'Delivery text 1' };
-                                  g.driver.SchemaMixin.makeId( d1, function( err, deliveryId1 ) {
-                                    test.ifError( err );
-                                    d1.id = deliveryId1;
-
-                                    var d2 = { personId: personId, addressId: addressId1, delivery: 'Delivery text 2' };
-                                    g.driver.SchemaMixin.makeId( d2, function( err, deliveryId2 ) {
-                                      test.ifError( err );
-                                      d2.id = deliveryId2;
+                            d2.id = deliveryId2;
                                     
-                                      var f1 = { configId: configId, field: 'field', value: 'Value' };
-                                      g.driver.SchemaMixin.makeId( f1, function( err, fieldId1 ) {
-                                        test.ifError( err );
-                                        f1.id = fieldId1;
+                            ops.push( { table: deliveriesR, op: 'insert', data: d2 } );
 
-                                        cb( p, a1, a2, n1, d1, d2, c, f1 );
+                            var f1 = {
+                              configId: configId,
+                              field: 'field',
+                              value: 'Value'
+                            };
+                            g.driver.SchemaMixin.makeId( f1, function( err, fieldId1 ) {
+                              test.ifError( err );
+                              f1.id = fieldId1;
 
-                                      });
-                                    });
-                                  });
-                                });
-                              });
+                              ops.push( { table: fieldsR, op: 'insert', data: f1 } );
+
+                              cb( null, ops );
+
                             });
                           });
                         });
@@ -978,68 +998,42 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                   });
                 });
               });
-            });
-          });
+
+            }
+          );
+
         }
         
         // Get started with the actual adding and testing
-        prepareGround( function( p, a1, a2, n1, d1, d2, c, f1 ){
+        prepareGround( function( err, ops ) {
 
-          console.log("\n\nPERSON INSERTED\n");
-          peopleR.insert( p, function( err ){
-            test.ifError( err );
+          async.eachSeries(
+            ops,
+            function( item, cb ){
+              if( item.op == 'insert' ){
+                console.log("\n\n");
+                console.log("INSERTING INTO", item.table.table );
+                item.table.insert( item.data, cb );
+              } else {
 
-            console.log("\n\nCONFIG INSERTED\n");
-              configR.insert( c, function( err ){
-              test.ifError( err );
-
-              console.log("\n\nFIRST ADDRESS INSERTED\n");
-              addressesR.insert( a1, function( err ){
-                test.ifError( err );
-
-                console.log("\n\n SECOND ADDRESS INSERTED\n");
-                addressesR.insert( a2, function( err ){
-                  test.ifError( err );
-
-                  console.log("\n\nFIRST DELIVERY INSERTED\n");
-                  deliveriesR.insert( d1, function( err ){
-                    test.ifError( err );
-
-                    console.log("\n\nSECOND DELIVERY INSERTED\n");
-                    deliveriesR.insert( d2, function( err ){
-                      test.ifError( err );
-                
-                      console.log("\n\nNOTE INSERTED\n");
-                      notesR.insert( n1, function( err ){
-                        test.ifError( err );
-
-                        console.log("\n\nFIELD INSERTED\n");
-                          fieldsR.insert( f1, function( err ){
+                //console.log("AFTER INSERT:");
+                //peopleR._getChildrenData( p, 'addressesR', { field: '_children', upperCase: true }, function( err, result ){
+                //console.log("******** p after the cure: ", require('util').inspect( p, { depth: 10 }  ) );
+                //  console.log("******** Result: ", require('util').inspect( result, { depth: 10 }  ) );
 
 
-                          test.ifError( err );
-     
-                          peopleR._getChildrenData( p, 'addressesR', { field: '_children', upperCase: true }, function( err, result ){
-                            //console.log("******** p after the cure: ", require('util').inspect( p, { depth: 10 }  ) );
-                            console.log("******** Result: ", require('util').inspect( result, { depth: 10 }  ) );
-                            test.done();
-                          });
-                        });
-                      });
-                    });
-                  });
-                });
-              });
-            });
-          });
+                cb( null );
+              }
+            },
+            function( err ){
+
+              test.done();
+            }
+          );
         });
-
-
 
       });
     },
-
-
 
 
   }
