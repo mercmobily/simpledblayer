@@ -770,7 +770,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             personId : { type: 'id', required: true, searchable: true },
             addressId: { type: 'id', required: true, searchable: true },
             text     : { type: 'string', searchable: true, sortable: true },
-          })
+          }),
+          autoLoad: {
+            'notesR.personId': true,
+          }
         });
 
         var deliveriesR = new g.Layer( 'deliveriesR', {
@@ -807,12 +810,9 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           }),
           nested: [
            { 
-             layer: fieldsR,
+             layer: 'fieldsR',
              join: { configId: 'id' }, 
              type: 'multiple',
-             searchable: true,
-             autoload: true, 
-             keywords: true,
            },
          ]
         });
@@ -826,63 +826,76 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               city     : { type: 'string', searchable: true },
               configId : { type: 'id', required: false, searchable: true },
             }),
+          autoLoad: {
+            'addressesR.notesR': true,
+            'addressesR.deliveriesR': true,
+            'addressesR.configId': true,
+            'addressesR.configId.fieldsR': true,
+            'addressesR.personId': true,
+          },
           nested: [
             { 
-              layer: notesR,
+              layer: 'notesR',
               join: { addressId: 'id' }, 
               type: 'multiple',
-              searchable: true,
-              autoload: true, 
-              keywords: true,
             },
 
             { 
-              layer: deliveriesR,
+              layer: 'deliveriesR',
               join: { addressId: 'id' }, 
               type: 'multiple',
-              searchable: true,
-              autoload: true, 
-              keywords: true,
             },
 
             { 
-              layer: configR,
+              layer: 'configR',
               type: 'lookup',
               parentField: 'configId',
               join: { id: 'configId' }, 
-              searchable: true,
-              autoload: true, 
-              keywords: true,
             },
+
+           { 
+              layer: 'peopleR',
+              type: 'lookup',
+              parentField: 'personId',
+              join: { id: 'personId' }, 
+            },
+
           ]
         });
-
 
         var peopleR = new g.Layer( 'peopleR', {
           schema: new g.driver.SchemaMixin( {
             id      : { type: 'id', required: true, searchable: true },
+            motherId: { type: 'id', required: false, searchable: true },
             name    : { type: 'string', searchable: true, sortable: true },
             surname : { type: 'string', searchable: true, sortable: true },
             age     : { type: 'number', searchable: true, sortable: true },
           }),
+          autoLoad: {
+            'peopleR.addressesR': true,
+            'peopleR.emailsR': true,
+            'peopleR.motherId': true,
+          },
           nested: [
            {
-             layer: addressesR,
+             layer: 'addressesR',
              join: { personId: 'id' },
              type: 'multiple',
-             searchable: true,
-             autoload: true,
-             keywords: true,
            },
 
            { 
-             layer: emailsR,
-             join: { emailId: 'id' }, 
+             layer: 'emailsR',
+             join: { personId: 'id' }, 
              type: 'multiple',
-             searchable: true,
-             autoload: false, 
-             keywords: true,
+           },
+
+           { 
+             layer: 'peopleR',
+             join: { 'id': 'motherId' }, 
+             parentField: 'motherId',
+             type: 'lookup',
            }
+
           ]
         });
 
@@ -918,6 +931,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 g.driver.SchemaMixin.makeId( p, function( err, personId ) {
                   test.ifError( err );
                   p.id = personId;
+                  p.motherId = p.id;
 
                   ops.push( { table: peopleR, op: 'insert', data: p } );
 
@@ -1007,6 +1021,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         // Get started with the actual adding and testing
         prepareGround( function( err, ops ) {
 
+        SimpleDbLayer.initLayers();
+
           async.eachSeries(
             ops,
             function( item, cb ){
@@ -1027,6 +1043,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             },
             function( err ){
 
+              test.ifError( err );
               test.done();
             }
           );
