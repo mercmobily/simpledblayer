@@ -15,8 +15,10 @@ var
 ;
 
 var consolelog = function(){
-  //console.log.apply( console, arguments );
+  console.log.apply( console, arguments );
 }
+
+
 
 
 var SimpleDbLayer = declare( null, {
@@ -54,6 +56,9 @@ var SimpleDbLayer = declare( null, {
       throw( new Error("SimpleDbLayer's constructor requires a 'schema' in options") );
     }
 
+    // Sets autoLoad hash for this layer
+    self.autoLoad = typeof( options.autoLoad ) === 'object' ? options.autoLoad : {};
+
     // Allow passing of SchemaError as an option. This error will be thrown when
     // the schema doesn't pass validation, with the `error` hash set
     if( options.SchemaError ){
@@ -82,13 +87,17 @@ var SimpleDbLayer = declare( null, {
     //self.searchSchema = typeof( options.searchSchema ) === 'undefined' || options.searchSchema === null ? self.schema : options.searchSchema;
     self.nested = options.nested || [];
     self.table = table;
-  
-    self._makeTableHashes();
+
+    if( typeof( SimpleDbLayer.registry ) === 'undefined' ) SimpleDbLayer.registry = {}; 
+    // Add this very table to the registry
+    SimpleDbLayer.registry[ table ] = self;
+
+    //self._makeTablesHashes();
 
   },
 
 
-  _makeTableHashes: function(){
+  _makeTablesHashes: function(){
 
     var self = this;
 
@@ -99,15 +108,29 @@ var SimpleDbLayer = declare( null, {
     self.multipleChildrenTablesHash = {};
     self.parentTablesArray = [];
  
-    var master = self;
+    //consolelog("Scanning initiated for ", self.table,". Registry:", Object.keys( SimpleDbLayer.registry ) );
+    consolelog("Scanning initiated for ", self.table );
 
     self.nested.forEach( function( childNestedParams ){
 
       var parent = self;
+
+      //if( childNestedParams.layer == 'self' ) childNestedParams.layer = self;
+
+      // The parameter childNestedParams.layer is a string. It needs to be
+      // converted to a proper table, now that they are all instantiated.
+      childNestedParams.layer = SimpleDbLayer.registry[ childNestedParams.layer ];
+
       var childLayer = childNestedParams.layer;
+     
 
       consolelog("Scanning", parent.table, ", nested params:", childNestedParams );
       consolelog("It has a parent. Setting info for", parent.table );
+
+      // Important check that parentField is actually set
+      if( childNestedParams.type == 'lookup' && typeof( childNestedParams.parentField ) === 'undefined' ){
+        throw( new Error( "parentField needs to be set for type lookup" ) );
+      }
 
       // Work out subName, depending on the type of the child.
       // - For multiple 1:n children, the subName can just be the child's table name
@@ -133,6 +156,12 @@ var SimpleDbLayer = declare( null, {
       // (Just an array, since it's just a generic list of fathers)
 
       consolelog("Adding", parent.table, " as a parent of", childLayer.table );
+
+      // This is important as childLayer might not have been initialised yet -- if that's the case,
+      // pushing into childLayer.parentTablesArray would actually push into the class' prototype
+      // which would be crap
+      // WAS: if( !Array.isArray( childLayer.parentTablesArray ) ) childLayer.parentTablesArray = [];
+      if( !childLayer.hasOwnProperty( 'parentTablesArray' ) ) childLayer.parentTablesArray = [];
 
       childLayer.parentTablesArray.push( { layer: parent, nestedParams: childNestedParams } );
     });
@@ -298,6 +327,17 @@ var SimpleDbLayer = declare( null, {
 
 });
 
+// Initialise all layers, creating relationship hashes
+SimpleDbLayer.initLayers = function(){
+  Object.keys( SimpleDbLayer.registry ).forEach( function( key ){
+    var table = SimpleDbLayer.registry[ key ];
+    table._makeTablesHashes();
+  });
+}
+// Get layer from the class' registry
+SimpleDbLayer.getLayer = function( tableName ){
+  return SimpleDbLayer.registry[ tableName ];
+}
 
 exports = module.exports = SimpleDbLayer;
 
