@@ -169,7 +169,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       try { 
         g.Layer = declare( [ SimpleDbLayer, g.driver.DriverMixin ], { db: g.driver.db });
 
-        g.people = new g.Layer( 'people', { schema: g.commonPeopleSchema } );
+        g.people = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'id' } );
 		  	test.ok( g.people );
 
       } catch( e ){
@@ -182,19 +182,19 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
       // Test that it works also by passing the db in the constructor
       var LayerNoDb = declare( [ SimpleDbLayer, g.driver.DriverMixin ] );
-      var peopleDb = new LayerNoDb( 'people', { schema: g.commonPeopleSchema } , g.driver.db );
+      var peopleDb = new LayerNoDb( 'people', { schema: g.commonPeopleSchema, idProperty: 'id' } , g.driver.db );
       test.ok( peopleDb );
       test.ok( peopleDb.db === g.people.db );
 
 
       // Test that passing `db` will override whatever was in the prototype
       var fakeDb = { collection: function(){ return "some" } };
-      var peopleRewriteDb = new g.Layer( 'people', { schema: g.commonPeopleSchema }, fakeDb );
+      var peopleRewriteDb = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'id' }, fakeDb );
       test.ok( fakeDb === peopleRewriteDb.db );
 
       // Test that not passing `db` anywhere throws
       test.throws( function(){        
-        new LayerNoDb( 'people', { schema: g.commonPeopleSchema } );
+        new LayerNoDb( 'people', { schema: g.commonPeopleSchema, idProperty: 'id' } );
       }, undefined, "Constructing a collection without definind DB in prototype or constructions should fail");
 
       test.done();
@@ -648,7 +648,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
 
-        var people2 = new g.Layer( 'people', { schema: g.commonPeopleSchema } );
+        var people2 = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'id' } );
         people2.hardLimitOnQueries = 2;
 
         people2.select( { sort: { age: 1 } }, function( err, results, total, grandTotal ){
@@ -771,9 +771,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             addressId: { type: 'id', required: true, searchable: true },
             text     : { type: 'string', searchable: true, sortable: true },
           }),
-          autoLoad: {
-            'notesR.personId': true,
-          }
+          idProperty: 'id',
         });
 
         var deliveriesR = new g.Layer( 'deliveriesR', {
@@ -782,7 +780,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             personId : { type: 'id', required: true, searchable: true },
             addressId: { type: 'id', required: true, searchable: true },
             delivery : { type: 'string', searchable: true, sortable: true },
-          })
+          }),
+          idProperty: 'id',
         });
 
         var emailsR = new g.Layer( 'emailsR', {
@@ -790,7 +789,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             id       : { type: 'id', required: true, searchable: true },
             personId : { type: 'id', required: true, searchable: true },
             email    : { type: 'string', searchable: true, sortable: true },
-          })
+          }),
+          idProperty: 'id',
         });
 
         var fieldsR = new g.Layer( 'fieldsR', {
@@ -799,7 +799,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             configId : { type: 'id', required: true, searchable: true },
             field    : { type: 'string', searchable: true, sortable: true },
             value    : { type: 'string', searchable: true, sortable: true },
-          })
+          }),
+          idProperty: 'id',
         });
 
         var configR = new g.Layer( 'configR', {
@@ -808,6 +809,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             config1  : { type: 'string', searchable: true, sortable: true },
             config2  : { type: 'string', searchable: true, sortable: true },
           }),
+          idProperty: 'id',
           nested: [
            { 
              layer: 'fieldsR',
@@ -822,28 +824,27 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             new g.driver.SchemaMixin( {
               id       : { type: 'id', required: true, searchable: true },
               personId : { type: 'id', required: true, searchable: true },
-              street   : { type: 'string', searchable: true, sortable: true },
+              street   : { type: 'string', searchable: true },
               city     : { type: 'string', searchable: true },
               configId : { type: 'id', required: false, searchable: true },
             }),
-          autoLoad: {
-            'addressesR.notesR': true,
-            'addressesR.deliveriesR': true,
-            'addressesR.configId': true,
-            'addressesR.configId.fieldsR': true,
-            'addressesR.personId': true,
+          idProperty: 'id',
+          searchable: {
+            'configId.config1': true,
           },
           nested: [
             { 
               layer: 'notesR',
               join: { addressId: 'id' }, 
               type: 'multiple',
+              autoLoad: true,
             },
 
             { 
               layer: 'deliveriesR',
               join: { addressId: 'id' }, 
               type: 'multiple',
+              autoLoad: true,
             },
 
             { 
@@ -851,6 +852,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               type: 'lookup',
               parentField: 'configId',
               join: { id: 'configId' }, 
+              autoLoad: true,
             },
 
            { 
@@ -858,6 +860,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               type: 'lookup',
               parentField: 'personId',
               join: { id: 'personId' }, 
+              autoLoad: true,
             },
 
           ]
@@ -871,30 +874,28 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             surname : { type: 'string', searchable: true, sortable: true },
             age     : { type: 'number', searchable: true, sortable: true },
           }),
-          autoLoad: {
-            'peopleR.addressesR': true,
-            'peopleR.emailsR': true,
-            'peopleR.motherId': true,
-          },
+          idProperty: 'id',
           nested: [
-           {
-             layer: 'addressesR',
-             join: { personId: 'id' },
-             type: 'multiple',
-           },
+            {
+              layer: 'addressesR',
+              join: { personId: 'id' },
+              type: 'multiple',
+              autoLoad: true,
+            },
 
-           { 
-             layer: 'emailsR',
-             join: { personId: 'id' }, 
-             type: 'multiple',
-           },
+            { 
+              layer: 'emailsR',
+              join: { personId: 'id' }, 
+              type: 'multiple',
+            },
 
-           { 
-             layer: 'peopleR',
-             join: { 'id': 'motherId' }, 
-             parentField: 'motherId',
-             type: 'lookup',
-           }
+            { 
+              layer: 'peopleR',
+              join: { 'id': 'motherId' }, 
+              parentField: 'motherId',
+              type: 'lookup',
+              autoLoad: true,
+            }
 
           ]
         });
@@ -1002,6 +1003,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                               ops.push( { table: fieldsR, op: 'insert', data: f1 } );
 
+
+                              // Change of address
+                              a1.street = "bitton CHANGED";
+                              ops.push( { table: addressesR, op: 'update', data: a1 } );
+
                               cb( null, ops );
 
                             });
@@ -1030,13 +1036,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 console.log("\n\n");
                 console.log("INSERTING INTO", item.table.table );
                 item.table.insert( item.data, cb );
+
+              } else if( item.op == 'update' ){
+                console.log("\n\n");
+                console.log("UPDATING THIS", item.table.table, item.data.id );
+                item.table.update( { conditions: { and: [ { field: 'id', type: 'eq', value: item.data.id }   ]  }   }, item.data, cb );
               } else {
-
-                //console.log("AFTER INSERT:");
-                //peopleR._getChildrenData( p, 'addressesR', { field: '_children', upperCase: true }, function( err, result ){
-                //console.log("******** p after the cure: ", require('util').inspect( p, { depth: 10 }  ) );
-                //  console.log("******** Result: ", require('util').inspect( result, { depth: 10 }  ) );
-
 
                 cb( null );
               }
