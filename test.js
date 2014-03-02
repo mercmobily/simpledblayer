@@ -837,14 +837,14 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               layer: 'notesR',
               join: { addressId: 'id' }, 
               type: 'multiple',
-              autoLoad: true,
+              searchable: true,
             },
 
             { 
               layer: 'deliveriesR',
               join: { addressId: 'id' }, 
               type: 'multiple',
-              autoLoad: true,
+              searchable: true,
             },
 
             { 
@@ -853,6 +853,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               parentField: 'configId',
               join: { id: 'configId' }, 
               autoLoad: true,
+              searchable: true,
             },
 
            { 
@@ -880,13 +881,14 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               layer: 'addressesR',
               join: { personId: 'id' },
               type: 'multiple',
-              autoLoad: true,
+              searchable: true,
             },
 
             { 
               layer: 'emailsR',
               join: { personId: 'id' }, 
               type: 'multiple',
+              autoLoad: true,
             },
 
             { 
@@ -1005,8 +1007,22 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
 
                               // Change of address
-                              a1.street = "bitton CHANGED";
-                              ops.push( { table: addressesR, op: 'update', data: a1 } );
+                              var a1c = {}; for( var k in a1 ) a1c[ k ] = a1[ k ];
+                              a1c.street = "bitton CHANGED";
+                              ops.push( { table: addressesR, op: 'update', data: a1c } );
+
+                              var pc = {}; for( var k in p ) pc[ k ] = p[ k ];
+                              pc.name = "Chiara CHANGED";
+                              ops.push( { table: peopleR, op: 'update', data: pc } );
+
+                              var cc = {}; for( var k in c ) cc[ k ] = p[ k ];
+                              cc.config1 = "CONFIG 1 CHANGED";
+                              ops.push( { table: configR, op: 'update', data: cc } );
+
+                              ops.push( { table: addressesR, op: 'delete', data: a2 } );
+
+                              ops.push( { table: configR, op: 'delete', data: c } );
+
 
                               cb( null, ops );
 
@@ -1041,8 +1057,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 console.log("\n\n");
                 console.log("UPDATING THIS", item.table.table, item.data.id );
                 item.table.update( { conditions: { and: [ { field: 'id', type: 'eq', value: item.data.id }   ]  }   }, item.data, cb );
-              } else {
 
+              } else if( item.op == 'delete' ){
+                console.log("\n\n");
+                console.log("DELETING THIS", item.table.table, item.data.id );
+                item.table.delete( { conditions: { and: [ { field: 'id', type: 'eq', value: item.data.id }   ]  }   }, cb );
+              } else {
                 cb( null );
               }
             },
