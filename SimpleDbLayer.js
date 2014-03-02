@@ -26,13 +26,14 @@ var SimpleDbLayer = declare( null, {
   db: null,
 
   schema: {},
-  searchSchema: {},
   SchemaError: Error,
   
   childrenTablesHash: {},
   lookupChildrenTablesHash: {},
   multipleChildrenTablesHash: {},
   parentTablesArray: {},
+
+  searchableHash: {},
 
   table: '',
   childrenField: '_children',
@@ -55,6 +56,33 @@ var SimpleDbLayer = declare( null, {
     if( typeof( options.schema ) === 'undefined' ){
       throw( new Error("SimpleDbLayer's constructor requires a 'schema' in options") );
     }
+
+    // idProperty needs to be defined
+    if( typeof( options.idProperty ) === 'undefined' ){
+      throw( new Error("SimpleDbLayer's constructor requires an 'idProperty' in options") );
+    }
+
+    // Assign the searchable hash's basic value, as empty object or as passed options.
+    // In any case, will make it local to the object
+    if( typeof( options.searchable ) === 'undefined' ){
+      self._searchableHash = {};
+    } else {
+      self._searchableHash = {};
+      Object.keys( options.searchable).forEach( function( field ){
+        var entry = options.searchable[ field ];
+        self._searchableHash[ '_searchData' + '.' + field ] = true;
+      });
+    }
+
+    // Make up searchableHash, with whatever is marked as "searchable" in the
+    // schema, PLUS whatever is listed as "searchable" (for foreign fields) in the
+    // object's definition
+    Object.keys( options.schema.structure ).forEach( function( field ) {
+      var entry = options.schema.structure[ field ];
+      if( entry.searchable ) self._searchableHash[ field ] = true;
+    });
+
+    console.log("SEARCHABLE HASH FOR ", table," IS: ", self._searchableHash );
 
     // Sets autoLoad hash for this layer
     self.autoLoad = typeof( options.autoLoad ) === 'object' ? options.autoLoad : {};
@@ -84,7 +112,7 @@ var SimpleDbLayer = declare( null, {
 
     // Set the object's attributes: schema, nested, table
     self.schema = options.schema;
-    //self.searchSchema = typeof( options.searchSchema ) === 'undefined' || options.searchSchema === null ? self.schema : options.searchSchema;
+    self.idProperty = options.idProperty;
     self.nested = options.nested || [];
     self.table = table;
 
