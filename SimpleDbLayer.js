@@ -15,10 +15,8 @@ var
 ;
 
 var consolelog = function(){
-  console.log.apply( console, arguments );
+  //console.log.apply( console, arguments );
 }
-
-
 
 
 var SimpleDbLayer = declare( null, {
@@ -70,19 +68,24 @@ var SimpleDbLayer = declare( null, {
       self._searchableHash = {};
       Object.keys( options.searchable).forEach( function( field ){
         var entry = options.searchable[ field ];
-        self._searchableHash[ '_searchData' + '.' + field ] = true;
+        self._searchableHash[ field ] = true;
       });
     }
 
-    // Make up searchableHash, with whatever is marked as "searchable" in the
-    // schema, PLUS whatever is listed as "searchable" (for foreign fields) in the
-    // object's definition
+    // Add entries to searchableHash: add whichever field is marked as "searchable" in the
+    // schema.
     Object.keys( options.schema.structure ).forEach( function( field ) {
       var entry = options.schema.structure[ field ];
       if( entry.searchable ) self._searchableHash[ field ] = true;
     });
 
-    console.log("SEARCHABLE HASH FOR ", table," IS: ", self._searchableHash );
+    // Add more entries to searchableHash: add all foreign keys in joins
+    if( !Array.isArray( options.nested ) ) options.nested = [];
+    options.nested.forEach( function( nested ){
+      Object.keys( nested.join ).forEach( function( key ){
+        self._searchableHash[ nested.layer + '.' + nested.join[ key ] ] = true;
+      });
+    });
 
     // Sets autoLoad hash for this layer
     self.autoLoad = typeof( options.autoLoad ) === 'object' ? options.autoLoad : {};
@@ -102,7 +105,6 @@ var SimpleDbLayer = declare( null, {
       throw( new Error("SimpleDbLayer's constructor need to have 'db' in their prototype") );
     }
 
-
     // Check that the same table is not managed by two different db layers
     // Only ONE db layer per DB table
     //if( self.tableRegistry[ table ] ){
@@ -113,14 +115,12 @@ var SimpleDbLayer = declare( null, {
     // Set the object's attributes: schema, nested, table
     self.schema = options.schema;
     self.idProperty = options.idProperty;
-    self.nested = options.nested || [];
+    self.nested = options.nested;
     self.table = table;
 
     if( typeof( SimpleDbLayer.registry ) === 'undefined' ) SimpleDbLayer.registry = {}; 
     // Add this very table to the registry
     SimpleDbLayer.registry[ table ] = self;
-
-    //self._makeTablesHashes();
 
   },
 
@@ -150,7 +150,6 @@ var SimpleDbLayer = declare( null, {
       childNestedParams.layer = SimpleDbLayer.registry[ childNestedParams.layer ];
 
       var childLayer = childNestedParams.layer;
-     
 
       consolelog("Scanning", parent.table, ", nested params:", childNestedParams );
       consolelog("It has a parent. Setting info for", parent.table );
