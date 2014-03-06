@@ -15,7 +15,7 @@ var
 ;
 
 var consolelog = function(){
-  //console.log.apply( console, arguments );
+  console.log.apply( console, arguments );
 }
 
 
@@ -29,9 +29,9 @@ var SimpleDbLayer = declare( null, {
   childrenTablesHash: {},
   lookupChildrenTablesHash: {},
   multipleChildrenTablesHash: {},
-  parentTablesArray: {},
+  parentTablesArray: [],
 
-  searchableHash: {},
+  _searchableHash: {},
 
   table: '',
   childrenField: '_children',
@@ -72,7 +72,7 @@ var SimpleDbLayer = declare( null, {
       });
     }
 
-    // Add entries to searchableHash: add whichever field is marked as "searchable" in the
+    // Add entries to _searchableHash: add whichever field is marked as "searchable" in the
     // schema.
     Object.keys( options.schema.structure ).forEach( function( field ) {
       var entry = options.schema.structure[ field ];
@@ -81,11 +81,26 @@ var SimpleDbLayer = declare( null, {
 
     // Add more entries to searchableHash: add all foreign keys in joins
     if( !Array.isArray( options.nested ) ) options.nested = [];
+
+    /*
+    // TODO: FIXME
     options.nested.forEach( function( nested ){
-      Object.keys( nested.join ).forEach( function( key ){
-        self._searchableHash[ nested.layer + '.' + nested.join[ key ] ] = true;
-      });
+      var field;
+      if( nested.type === 'lookup' ){
+        field = nested.parentField;
+        Object.keys( nested.join ).forEach( function( key ){
+          self._searchableHash[ field + '.' +  key ] = true;
+        });
+
+      } else {
+        field = nested.layer;
+        Object.keys( nested.join ).forEach( function( key ){
+          self._searchableHash[ field + '.' + nested.join[ key ] ] = true;
+        });
+      }
     });
+    */
+
 
     // Sets autoLoad hash for this layer
     self.autoLoad = typeof( options.autoLoad ) === 'object' ? options.autoLoad : {};
@@ -134,10 +149,10 @@ var SimpleDbLayer = declare( null, {
     self.childrenTablesHash = {};
     self.lookupChildrenTablesHash = {};
     self.multipleChildrenTablesHash = {};
-    self.parentTablesArray = [];
+    self.parentTablesArray = self.parentTablesArray ||  [];
  
     //consolelog("Scanning initiated for ", self.table,". Registry:", Object.keys( SimpleDbLayer.registry ) );
-    consolelog("Scanning initiated for ", self.table );
+    consolelog("\nScanning initiated for ", self.table );
 
     self.nested.forEach( function( childNestedParams ){
 
@@ -151,7 +166,7 @@ var SimpleDbLayer = declare( null, {
 
       var childLayer = childNestedParams.layer;
 
-      consolelog("Scanning", parent.table, ", nested params:", childNestedParams );
+      consolelog("Scanning", parent.table, ", nested table:", childNestedParams.layer.table, ", nested params:", childNestedParams );
       consolelog("It has a parent. Setting info for", parent.table );
 
       // Important check that parentField is actually set
@@ -191,6 +206,30 @@ var SimpleDbLayer = declare( null, {
       if( !childLayer.hasOwnProperty( 'parentTablesArray' ) ) childLayer.parentTablesArray = [];
 
       childLayer.parentTablesArray.push( { layer: parent, nestedParams: childNestedParams } );
+
+      consolelog("The child Layer", childLayer.table,"at this point has the following parents: ", childLayer.parentTablesArray );
+
+      // Add more entries to _searchableHash: _all_ fields that are searchable
+      // in a child record
+      consolelog("Adding entries to father's _searchableHash to make sure that searchable children fields are searchable");
+      var field;
+      if( childNestedParams.type === 'lookup' ) field = childNestedParams.parentField;
+      if( childNestedParams.type === 'multiple' ) field = childLayer.table;
+      consolelog( 'Considering field ', field, "for table: ", childLayer.table );
+
+      Object.keys( childLayer.schema.structure ).forEach( function( k ){
+        var entry = childLayer.schema.structure[ k ];
+        consolelog( "Field:" , k, ", Entry for that field:" );
+        consolelog( entry );
+
+        if( entry.searchable ){
+          consolelog("Field is searchable! So: ", field + "." + k, "will be searchable in father table" );
+          parent._searchableHash[ field + "." + k ] = true;
+        }
+      }); 
+      consolelog("Parents searchable hash after cure:", parent.searchableHash );
+      
+
     });
 
   },
