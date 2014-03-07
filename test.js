@@ -820,9 +820,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               configId : { type: 'id', required: false, searchable: true },
             }),
           idProperty: 'id',
-          searchable: {
-            'configId.config2': true,
-          },
           nested: [
             { 
               layer: 'configR',
@@ -923,7 +920,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                       g.driver.SchemaMixin.makeId( p2, function( err, id ) {
                         test.ifError( err );
                         p2.id = id;
-                        p2.motherId = p2.id;
+                        p2.motherId = p1.id;
                         p2.configId = c1.id;
 
                         ops.push( { table: peopleR, op: 'insert', data: p2 } );
@@ -981,20 +978,18 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                                 ops.push( { table: addressesR, op: 'insert', data: a3 } );
 
-
-                                
                                 // Change of address
                                 var a1c = {}; for( var k in a1 ) a1c[ k ] = a1[ k ];
                                 a1c.street = "bitton CHANGED";
                                 ops.push( { table: addressesR, op: 'update', data: a1c } );
 
-                                /*
-
                                 var p1c = {}; for( var k in p1 ) p1c[ k ] = p1[ k ];
+                                delete p1c.surname;
                                 p1c.name = "Tony CHANGED";
                                 p1c.configId = c2.id;
-                                ops.push( { table: peopleR, op: 'update', data: p1c } );
+                                ops.push( { table: peopleR, op: 'update', data: p1c, deleteUnsetFields: true } );
 
+                              /*
                                 var c1c = {}; for( var k in c1 ) c1c[ k ] = c1[ k ];
                                 c1c.config1 = "C1 - Config Line One CHANGED";
                                 ops.push( { table: configR, op: 'update', data: c1c } );
@@ -1052,6 +1047,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                 var options = item.options || {};
                 var selector = item.selector || { conditions: { and: [ { field: 'id', type: 'eq', value: item.data.id }   ]  }   };
+                if( item.deleteUnsetFields ) options.deleteUnsetFields = true;
 
                 console.log("\n\n");
                 console.log("UPDATING THIS", item.data, selector.conditions.and );

@@ -60,23 +60,29 @@ var SimpleDbLayer = declare( null, {
       throw( new Error("SimpleDbLayer's constructor requires an 'idProperty' in options") );
     }
 
+   
+    self._searchableHash = {};
+    /*
     // Assign the searchable hash's basic value, as empty object or as passed options.
     // In any case, will make it local to the object
     if( typeof( options.searchable ) === 'undefined' ){
       self._searchableHash = {};
     } else {
       self._searchableHash = {};
-      Object.keys( options.searchable).forEach( function( field ){
+      Object.keys( options.searchable ).forEach( function( field ){
         var entry = options.searchable[ field ];
         self._searchableHash[ field ] = true;
       });
     }
+    */
 
     // Add entries to _searchableHash: add whichever field is marked as "searchable" in the
     // schema.
+    // This will assign either `true`, or `upperCase` (for strings)
     Object.keys( options.schema.structure ).forEach( function( field ) {
       var entry = options.schema.structure[ field ];
-      if( entry.searchable ) self._searchableHash[ field ] = true;
+      if( entry.searchable )
+        self._searchableHash[ field ] = entry.type === 'string' ? 'upperCase' : true;
     });
 
     // Add more entries to searchableHash: add all foreign keys in joins
@@ -224,7 +230,8 @@ var SimpleDbLayer = declare( null, {
 
         if( entry.searchable ){
           consolelog("Field is searchable! So: ", field + "." + k, "will be searchable in father table" );
-          parent._searchableHash[ field + "." + k ] = true;
+          parent._searchableHash[ field + "." + k ] = entry.type === 'string' ? 'upperCase' : true;
+          consolelog("Assigned value:", parent._searchableHash[ field + "." + k ] );
         }
       }); 
       consolelog("Parents searchable hash after cure:", parent.searchableHash );
