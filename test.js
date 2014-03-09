@@ -769,12 +769,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
         var peopleR = new g.Layer( 'peopleR', {
           schema: new g.driver.SchemaMixin( {
-            id      : { type: 'id', required: true, searchable: true },
-            name    : { type: 'string', searchable: true, sortable: true },
-            surname : { type: 'string', searchable: true, sortable: true },
-            age     : { type: 'number', searchable: true, sortable: true },
+            id      : { type: 'id', required: true, searchable: true, permutePrefix: true },
+            name    : { type: 'string', searchable: true, sortable: true, permute: true },
+            surname : { type: 'string', searchable: true, sortable: true, permute: true },
+            age     : { type: 'number', searchable: true, sortable: true, permute: true },
 
-            configId: { type: 'id', required: true, searchable: true } ,
+            configId: { type: 'id', required: true } ,
             motherId: { type: 'id', required: false, searchable: true },
           }),
           idProperty: 'id',
@@ -790,6 +790,15 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             },
 
             { 
+              layer: 'configR',
+              join: { 'id': 'configId' }, 
+              parentField: 'configId',
+              type: 'lookup',
+              autoLoad: true,
+              searchable: true,
+            },
+
+            { 
               layer: 'peopleR',
               join: { 'id': 'motherId' }, 
               parentField: 'motherId',
@@ -798,15 +807,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               searchable: true,
             },
 
-            { 
-              layer: 'configR',
-              join: { 'id': 'configId' }, 
-              parentField: 'configId',
-              type: 'lookup',
-              autoLoad: true,
-              searchable: true,
-            }
-
           ]
         });
  
@@ -814,10 +814,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           schema: 
             new g.driver.SchemaMixin( {
               id       : { type: 'id', required: true, searchable: true },
-              personId : { type: 'id', required: true, searchable: true },
-              street   : { type: 'string', searchable: true },
-              city     : { type: 'string', searchable: true },
-              configId : { type: 'id', required: false, searchable: true },
+              personId : { type: 'id', required: true, searchable: true, permutePrefix: true },
+              street   : { type: 'string', searchable: true, permute: true },
+              city     : { type: 'string', searchable: true, permute: true },
+              configId : { type: 'id', required: false },
             }),
           idProperty: 'id',
           nested: [
@@ -844,19 +844,17 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         var configR = new g.Layer( 'configR', {
           schema: new g.driver.SchemaMixin( {
             id       : { type: 'id', required: true, searchable: true },
-            config1  : { type: 'string', searchable: true, sortable: true },
-            config2  : { type: 'string', searchable: true, sortable: true },
+            config1  : { type: 'string', searchable: true, sortable: true, permute: true },
+            config2  : { type: 'string', searchable: true, sortable: true, permute: true },
           }),
           idProperty: 'id',
         });
 
-        
-      
         // Zap DB and make up records ready to be added
  
         function prepareGround( cb ){
 
-          async.each(
+          async.eachSeries(
             [ peopleR, addressesR, configR ],
             function( item, cb){
               item.delete( { }, { multi: true }, cb );
@@ -978,11 +976,21 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                                 ops.push( { table: addressesR, op: 'insert', data: a3 } );
 
-                                // Change of address
-                                var a1c = {}; for( var k in a1 ) a1c[ k ] = a1[ k ];
+                                // Change of address -- bitton
+                                var a1c = {};
                                 a1c.street = "bitton CHANGED";
-                                ops.push( { table: addressesR, op: 'update', data: a1c } );
+                                a1c.personId = a1.personId;
+                                a1c.id = a1.id;
+                                ops.push( { deleteUnsetFields: false, table: addressesR, op: 'update', options: { multi: false }, data: a1c } );
 
+                                // Change of address -- ivermey
+                                var a2c = {};
+                                a2c.street = "ivermey CHANGED";
+                                a2c.personId = a2.personId;
+                                a2c.id = a2.id;
+                                ops.push( { deleteUnsetFields: false, table: addressesR, op: 'update', selector: { conditions: { and: [ { field: 'street', type: 'eq', value: 'ivermey' }   ]  } }, options: { multi: true }, data: a2c } );
+
+ 
                                 var p1c = {}; for( var k in p1 ) p1c[ k ] = p1[ k ];
                                 delete p1c.surname;
                                 p1c.name = "Tony CHANGED";
@@ -1005,9 +1013,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                                */
                                 
 
-                                //ops.push( { table: addressesR, op: 'delete', data: a2 } );
+                                ops.push( { table: addressesR, op: 'delete', data: a2 } );
 
-                                //ops.push( { table: configR, op: 'delete', data: c } );
+                                // ops.push( { table: configR, op: 'delete', data: c2 } );
+                                ops.push( { table: configR, op: 'delete', data: c2, selector: { conditions: { and: [ { field: 'config1', type: 'eq', value: 'C2 - Config Line One' }   ]  }  } } );
+
 
                                 cb( null, ops );
                               });
@@ -1024,12 +1034,29 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
         }
         
-        
-        console.log("DEBUG1: INITIALISING LAYERS" );
+        console.log("INITIALISING LAYERS..." );
         SimpleDbLayer.initLayers();
 
+        SimpleDbLayer.getLayer('peopleR').makeAllIndexes( {}, function( err ){
+          if( err ){
+            console.log("Error building the indexes for peopleR!");
+            console.log( err );
+            process.exit(0);           
+          }
+        });
+
+        Object.keys( SimpleDbLayer.registry ).forEach( function( k ) {
+
+          var item = SimpleDbLayer.registry[ k ];
+          console.log("\nK IS:", k );
+          console.log("DEBUG1 ITEM: ",  item );
+          console.log("Table: ", item.table );
+          console.log("Searchable hash:", item._searchableHash );
+          console.log("Permutation groups:", item._permutationGroups );
+        });
         // Get started with the actual adding and testing
         prepareGround( function( err, ops ) {
+
 
         
 
@@ -1043,21 +1070,22 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
               } else if( item.op == 'update' ){
 
-                console.log("PASSED OPTIONS: ", ops.options );
-
                 var options = item.options || {};
                 var selector = item.selector || { conditions: { and: [ { field: 'id', type: 'eq', value: item.data.id }   ]  }   };
                 if( item.deleteUnsetFields ) options.deleteUnsetFields = true;
 
                 console.log("\n\n");
-                console.log("UPDATING THIS", item.data, selector.conditions.and );
+                console.log("UPDATING THIS", item.data, selector.conditions, options );
 
                 item.table.update( selector, item.data, options, cb );
 
               } else if( item.op == 'delete' ){
+                var selector = item.selector || { conditions: { and: [ { field: 'id', type: 'eq', value: item.data.id }   ]  }   };
+                var options = item.options || {};
+
                 console.log("\n\n");
                 console.log("DELETING THIS", item.table.table, item.data.id );
-                item.table.delete( { conditions: { and: [ { field: 'id', type: 'eq', value: item.data.id }   ]  }   }, cb );
+                item.table.delete( { conditions: { and: [ { field: 'id', type: 'eq', value: item.data.id }   ]  }   }, options, cb );
               } else {
                 cb( null );
               }
