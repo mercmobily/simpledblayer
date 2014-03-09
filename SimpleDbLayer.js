@@ -31,6 +31,8 @@ var SimpleDbLayer = declare( null, {
   multipleChildrenTablesHash: {},
   parentTablesArray: [],
 
+  _permutationGroups: {},
+  _permutationPrefixes: {},
   _searchableHash: {},
 
   table: '',
@@ -61,52 +63,32 @@ var SimpleDbLayer = declare( null, {
     }
 
    
-    self._searchableHash = {};
-    /*
-    // Assign the searchable hash's basic value, as empty object or as passed options.
-    // In any case, will make it local to the object
-    if( typeof( options.searchable ) === 'undefined' ){
-      self._searchableHash = {};
-    } else {
-      self._searchableHash = {};
-      Object.keys( options.searchable ).forEach( function( field ){
-        var entry = options.searchable[ field ];
-        self._searchableHash[ field ] = true;
-      });
-    }
-    */
+    // Gets its own variables, avoid using the ptototype
+    self.childrenTablesHash = {};
+    self.lookupChildrenTablesHash = {};
+    self.multipleChildrenTablesHash = {};
+    self.parentTablesArray = [];
 
-    // Add entries to _searchableHash: add whichever field is marked as "searchable" in the
+    self._permutationGroups = { __main: { prefixes: {}, fields: {} } };
+    self._searchableHash = {};
+
+
+
+    // Add entries to _searchableHash: add whichever field is marked as "searchable" or "permute" in the
     // schema.
     // This will assign either `true`, or `upperCase` (for strings)
     Object.keys( options.schema.structure ).forEach( function( field ) {
       var entry = options.schema.structure[ field ];
-      if( entry.searchable )
-        self._searchableHash[ field ] = entry.type === 'string' ? 'upperCase' : true;
+
+      var entryType = entry.type === 'string' ? 'upperCase' : true;
+
+      if( entry.searchable )                         self._searchableHash[ field ] = entryType;
+      if( entry.searchable && entry.permute )        self._permutationGroups.__main.fields[ field ] = entryType;
+      if( entry.searchable && entry.permutePrefix )  self._permutationGroups.__main.prefixes[ field ] = entryType;
     });
 
-    // Add more entries to searchableHash: add all foreign keys in joins
+    // Add more entries to _searchableHash: add all foreign keys in joins
     if( !Array.isArray( options.nested ) ) options.nested = [];
-
-    /*
-    // TODO: FIXME
-    options.nested.forEach( function( nested ){
-      var field;
-      if( nested.type === 'lookup' ){
-        field = nested.parentField;
-        Object.keys( nested.join ).forEach( function( key ){
-          self._searchableHash[ field + '.' +  key ] = true;
-        });
-
-      } else {
-        field = nested.layer;
-        Object.keys( nested.join ).forEach( function( key ){
-          self._searchableHash[ field + '.' + nested.join[ key ] ] = true;
-        });
-      }
-    });
-    */
-
 
     // Sets autoLoad hash for this layer
     self.autoLoad = typeof( options.autoLoad ) === 'object' ? options.autoLoad : {};
@@ -142,29 +124,19 @@ var SimpleDbLayer = declare( null, {
     if( typeof( SimpleDbLayer.registry ) === 'undefined' ) SimpleDbLayer.registry = {}; 
     // Add this very table to the registry
     SimpleDbLayer.registry[ table ] = self;
-
   },
 
 
   _makeTablesHashes: function(){
 
     var self = this;
+    var parent = self;
 
     // Make up all table hashes and arrays
 
-    self.childrenTablesHash = {};
-    self.lookupChildrenTablesHash = {};
-    self.multipleChildrenTablesHash = {};
-    self.parentTablesArray = self.parentTablesArray ||  [];
- 
-    //consolelog("Scanning initiated for ", self.table,". Registry:", Object.keys( SimpleDbLayer.registry ) );
     consolelog("\nScanning initiated for ", self.table );
 
     self.nested.forEach( function( childNestedParams ){
-
-      var parent = self;
-
-      //if( childNestedParams.layer == 'self' ) childNestedParams.layer = self;
 
       // The parameter childNestedParams.layer is a string. It needs to be
       // converted to a proper table, now that they are all instantiated.
@@ -172,7 +144,7 @@ var SimpleDbLayer = declare( null, {
 
       var childLayer = childNestedParams.layer;
 
-      consolelog("Scanning", parent.table, ", nested table:", childNestedParams.layer.table, ", nested params:", childNestedParams );
+      consolelog("\nScanning", parent.table, ", nested table:", childNestedParams.layer.table, ", nested params:", childNestedParams );
       consolelog("It has a parent. Setting info for", parent.table );
 
       // Important check that parentField is actually set
@@ -196,26 +168,20 @@ var SimpleDbLayer = declare( null, {
       // (With the right subkey)
 
       var thisLayerObject = { layer: childLayer, nestedParams: childNestedParams };
-      parent.childrenTablesHash[ subName ] =  thisLayerObject;
-      if( childNestedParams.type === 'lookup' ) parent.lookupChildrenTablesHash[ subName ] = thisLayerObject;
-      if( childNestedParams.type === 'multiple' ) parent.multipleChildrenTablesHash [ subName ] = thisLayerObject;
+      self.childrenTablesHash[ subName ] =  thisLayerObject;
+      if( childNestedParams.type === 'lookup' ) self.lookupChildrenTablesHash[ subName ] = thisLayerObject;
+      if( childNestedParams.type === 'multiple' ) self.multipleChildrenTablesHash [ subName ] = thisLayerObject;
 
       // Adding this parent to the child
       // (Just an array, since it's just a generic list of fathers)
 
-      consolelog("Adding", parent.table, " as a parent of", childLayer.table );
+      consolelog("Adding", self.table, " as a parent of", childLayer.table );
 
-      // This is important as childLayer might not have been initialised yet -- if that's the case,
-      // pushing into childLayer.parentTablesArray would actually push into the class' prototype
-      // which would be crap
-      // WAS: if( !Array.isArray( childLayer.parentTablesArray ) ) childLayer.parentTablesArray = [];
-      if( !childLayer.hasOwnProperty( 'parentTablesArray' ) ) childLayer.parentTablesArray = [];
+      childLayer.parentTablesArray.push( { layer: self, nestedParams: childNestedParams } );
 
-      childLayer.parentTablesArray.push( { layer: parent, nestedParams: childNestedParams } );
+      consolelog("The child Layer", childLayer.table, "at this point has the following parents: ", childLayer.parentTablesArray );
 
-      consolelog("The child Layer", childLayer.table,"at this point has the following parents: ", childLayer.parentTablesArray );
-
-      // Add more entries to _searchableHash: _all_ fields that are searchable
+      // Add more entries to _searchableHash and _permutationGroups: _all_ fields that are searchable/permutable
       // in a child record
       consolelog("Adding entries to father's _searchableHash to make sure that searchable children fields are searchable");
       var field;
@@ -224,20 +190,55 @@ var SimpleDbLayer = declare( null, {
       consolelog( 'Considering field ', field, "for table: ", childLayer.table );
 
       Object.keys( childLayer.schema.structure ).forEach( function( k ){
+
         var entry = childLayer.schema.structure[ k ];
-        consolelog( "Field:" , k, ", Entry for that field:" );
+        var entryType = entry.type === 'string' ? 'upperCase' : true;
+
+        consolelog( "Field:" , k, ", Entry for that field: -- type: ", entryType );
         consolelog( entry );
 
+        if( entry.searchable && entry.permute ){
+          
+          self._permutationGroups[ field ] = self._permutationGroups[ field ] || { prefixes: {}, fields: {} };
+          self._permutationGroups[ field ].fields[ field + '.' + k ] = entryType;
+
+          consolelog("Field is permutable!" );
+        }
+
+        if( entry.searchable && entry.permutePrefix ){
+
+          self._permutationGroups[ field ] = self._permutationGroups[ field ] || { prefixes: {}, fields: {} };
+          self._permutationGroups[ field ].prefixes[ field + '.' + k ] = entryType;
+
+          consolelog("Field is a prefix for permutable!" );
+        }
+ 
+        // If entry is searchable, add the field to the _searchableHash
         if( entry.searchable ){
+
+          // Mark the field as searchable
+          self._searchableHash[ field + "." + k ] = entryType;
           consolelog("Field is searchable! So: ", field + "." + k, "will be searchable in father table" );
-          parent._searchableHash[ field + "." + k ] = entry.type === 'string' ? 'upperCase' : true;
-          consolelog("Assigned value:", parent._searchableHash[ field + "." + k ] );
         }
       }); 
-      consolelog("Parents searchable hash after cure:", parent.searchableHash );
       
+      consolelog("Making sure that join keys are searchable:" );
 
+      // Makes sure that nested tables have ALL of the right indexes
+      // so that joins always work
+      if( childNestedParams.type === 'lookup' ) var field = childNestedParams.parentField;
+      else var field = childNestedParams.layer;
+
+      Object.keys( childNestedParams.join ).forEach( function( key ){
+        console.log( "Forcing ", key, 'in table', childLayer.table, 'to be searchable' );
+        childLayer._searchableHash[ key ] = true;
+      });
+
+      consolelog("Parents searchable hash after cure:", parent._searchableHash );
+
+      // Create permutation groups for indexing
     });
+    consolelog("End of scanning");
 
   },
 
