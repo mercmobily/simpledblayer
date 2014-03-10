@@ -488,8 +488,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
         g.people.select( { sort: { name: 1 } }, { useCursor: true }, function( err, cursor, total ){
           test.ifError( err );
-  
+ 
+          console.log("ERR IS:", err );
+ 
           test.notEqual( cursor, null );
+          test.notEqual( cursor, undefined );
+          console.log("CURSOR IS:", cursor );
           test.equal( total, 4 );
           
           var r =  [
@@ -778,8 +782,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             motherId: { type: 'id', required: false, searchable: true },
           }),
           idProperty: 'id',
-          searchable: {
-          },
+          positionField: 'position',
+          positionBase: [ ],
           nested: [
             {
               layer: 'addressesR',
@@ -820,6 +824,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               configId : { type: 'id', required: false },
             }),
           idProperty: 'id',
+          positionField: 'position',
+          positionBase: [ 'personId' ],
           nested: [
             { 
               layer: 'configR',
@@ -1037,13 +1043,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         console.log("INITIALISING LAYERS..." );
         SimpleDbLayer.initLayers();
 
-        SimpleDbLayer.getLayer('peopleR').makeAllIndexes( {}, function( err ){
-          if( err ){
-            console.log("Error building the indexes for peopleR!");
-            console.log( err );
-            process.exit(0);           
-          }
-        });
+        //SimpleDbLayer.getLayer('peopleR').makeAllIndexes( { background: true }, function( err ){
+        //  if( err ){
+        //    console.log("Error building the indexes for peopleR!");
+        //    console.log( err );
+        //  }
+        //});
 
         Object.keys( SimpleDbLayer.registry ).forEach( function( k ) {
 
@@ -1092,6 +1097,9 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             },
             function( err ){
               test.ifError( err );
+
+              
+              //SimpleDbLayer.getLayer('addressesR').makeAllIndexes( {}, function( err ){
 
               test.done();
             }
