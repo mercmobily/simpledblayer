@@ -32,18 +32,53 @@ function i( v ){
   console.log( require( 'util' ).inspect( v, { depth: 10 } ) );
 }
 
+var compareItems = function( test, a, b ){
+
+  var a1 = {}, b1 = {};
+
+  for( var k in a ) a1[ k ] = a[ k ];
+  for( var k in b ) b1[ k ] = b[ k ];
+
+  if( a1._children ) delete a1._children;
+  if( b1._children ) delete b1._children;
+
+  return compareCollections( test, [ a1 ], [ b1 ] );
+}
+
 var compareCollections = function( test, a, b ){
+
+  // Makes sure that records have the keys in the right order
+  var a0 = [];
+  for( var i = 0, l = a.length; i < l; i ++ ){
+    var item = a[ i ];
+    var newItem = {};
+    Object.keys( item ).sort().forEach( function( k ){
+      newItem[ k ] = item[ k ];
+    });
+    delete newItem._children;
+    a0.push( newItem );
+  }
+  var b0 = [];
+  for( var i = 0, l = b.length; i < l; i ++ ){
+    var item = b[ i ];
+    var newItem = {};
+    Object.keys( item ).sort().forEach( function( k ){
+      newItem[ k ] = item[ k ];
+    });
+    delete newItem._children;
+    b0.push( newItem );
+  }
 
   try {
     var a1 = [], a2, a3;
-    a.forEach( function( item ){
+    a0.forEach( function( item ){
       a1.push( JSON.stringify( item ) );
     });
     a2 = a1.sort();
     a3 = JSON.stringify( a2 );
 
     var b1 = [], b2, b3;
-    b.forEach( function( item ){
+    b0.forEach( function( item ){
       b1.push( JSON.stringify( item ) );
     });
     b2 = b1.sort();
@@ -52,12 +87,18 @@ var compareCollections = function( test, a, b ){
     test.fail( a, b, "Comparison failed", "recordset comparison" );
   }
 
-  var res = ( a3 == b3 );
+  equal = ( a3 == b3 );
 
-  if( ! res ){
-    test.fail( a, b, "Record sets do not match", "recordset comparison" );
+  if( ! equal ){
+    //test.fail( a, b, "Record sets do not match", "recordset comparison" );
+    console.log("MISMATCH BETWEEN:" );
+    console.log( a );
+    console.log( b );
+    console.log( (new Error()).stack );
   }
-  
+
+  test.ok( equal, "Record sets do not match" );
+ 
 }
 
 var populateCollection = function( data, collection, cb ){
@@ -169,7 +210,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       try { 
         g.Layer = declare( [ SimpleDbLayer, g.driver.DriverMixin ], { db: g.driver.db });
 
-        g.people = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'id' } );
+        g.people = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'name' } );
 		  	test.ok( g.people );
 
       } catch( e ){
@@ -182,19 +223,19 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
       // Test that it works also by passing the db in the constructor
       var LayerNoDb = declare( [ SimpleDbLayer, g.driver.DriverMixin ] );
-      var peopleDb = new LayerNoDb( 'people', { schema: g.commonPeopleSchema, idProperty: 'id' } , g.driver.db );
+      var peopleDb = new LayerNoDb( 'people', { schema: g.commonPeopleSchema, idProperty: 'name' } , g.driver.db );
       test.ok( peopleDb );
       test.ok( peopleDb.db === g.people.db );
 
 
       // Test that passing `db` will override whatever was in the prototype
       var fakeDb = { collection: function(){ return "some" } };
-      var peopleRewriteDb = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'id' }, fakeDb );
+      var peopleRewriteDb = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'name' }, fakeDb );
       test.ok( fakeDb === peopleRewriteDb.db );
 
       // Test that not passing `db` anywhere throws
       test.throws( function(){        
-        new LayerNoDb( 'people', { schema: g.commonPeopleSchema, idProperty: 'id' } );
+        new LayerNoDb( 'people', { schema: g.commonPeopleSchema, idProperty: 'name' } );
       }, undefined, "Constructing a collection without definind DB in prototype or constructions should fail");
 
       test.done();
@@ -652,7 +693,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err );
 
-        var people2 = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'id' } );
+        var people2 = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'name' } );
         people2.hardLimitOnQueries = 2;
 
         people2.select( { sort: { age: 1 } }, function( err, results, total, grandTotal ){
@@ -850,14 +891,40 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         var configR = new g.Layer( 'configR', {
           schema: new g.driver.SchemaMixin( {
             id       : { type: 'id', required: true, searchable: true },
-            config1  : { type: 'string', searchable: true, sortable: true, permute: true },
-            config2  : { type: 'string', searchable: true, sortable: true, permute: true },
+            configField  : { type: 'string', searchable: true, sortable: true, permute: true },
+            configValue  : { type: 'string', searchable: true, sortable: true, permute: true },
           }),
           idProperty: 'id',
         });
 
         // Zap DB and make up records ready to be added
- 
+
+        /*
+          TO TEST:
+
+          INSERTING
+          ---------
+          [ V ] Insert normal record (configR)
+          [ V ] Insert normal record with lookup relationship (peopleR pointing to configR)
+          [ V ] Insert record with 1:n relationship (addressesR child of a peopleR)
+          [ V ] Insert record with 1:n relationship and a lookup (addressesR child of a peopleR and with a configId)
+                    
+          UPDATING/DELETING
+          -----------------
+
+          [ V ] Update (single) configR: do _all_ fathers get updated/deleted?
+          [ V ] Update (mass) configR: do _all_ fathers get updated/deleted?
+
+          [   ] Update (single) addressesR: does the father get updated/deleted?
+          [   ] Update (mass) addressesR: does the father get updated/deleted?
+
+          SELECT
+          ------
+          [   ] Select filtering by subrecord
+
+
+        */
+       
         function prepareGround( cb ){
 
           async.eachSeries(
@@ -866,251 +933,606 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               item.delete( { }, { multi: true }, cb );
             },
             function( err ){
+              if( err ) return cb( err );
+              cb( null );
+            }
+          );
+        };
 
-              var ops = [];
+        var data = {};
 
-              // Add three config records 
+        prepareGround( function(){
 
-              var c1 = {
-                config1: 'C1 - Config Line One',
-                config2: 'C1 - Config Line Two'
-              };
-              g.driver.SchemaMixin.makeId( c1, function( err, id ) {
-                test.ifError( err );
-                c1.id = id;
+          console.log("INITIALISING LAYERS..." );
+          SimpleDbLayer.initLayers();
+ 
+          // Insert normal record (configR)
 
-                ops.push( { table: configR, op: 'insert', data: c1 } );
+          function insertFirstConfigRecord( cb ){
 
-                var c2 = {
-                  config1: 'C2 - Config Line One',
-                  config2: 'C2 - Config Line Two'
-                };
-                g.driver.SchemaMixin.makeId( c2, function( err, id ) {
+            console.log("Running insertFirstConfigRecord...");
+
+            data.c1 = {
+              configField: 'C1 - Config Field',
+              configValue: 'C1 - Config Value'
+            };
+            g.driver.SchemaMixin.makeId( data.c1, function( err, id ) {
+              test.ifError( err );
+              data.c1.id = id;
+
+              configR.insert( data.c1, function( err ){
+                if( err ) return cb( err );
+
+                configR.select( { },  function( err, results, total ){
                   test.ifError( err );
-                  c2.id = id;
+    
+                  test.equal( total, 1 );
+                  compareCollections( test, [ data.c1 ], results );
 
-                  ops.push( { table: configR, op: 'insert', data: c2 } );
+                  cb( null );
+                });
+              });
+            });
+          }; 
 
-                  var c3 = {
-                    config1: 'C3 - Config Line One',
-                    config2: 'C3 - Config Line Two'
-                  };
-                  g.driver.SchemaMixin.makeId( c3, function( err, id ) {
-                    test.ifError( err );
-                    c3.id = id;
+          function insertSecondConfigRecord( cb ){
 
-                    ops.push( { table: configR, op: 'insert', data: c3 } );
+            console.log("Running insertSecondConfigRecord...");
 
-                    // Add three people
+            data.c2 = {
+              configField: 'C2 - Config Field',
+              configValue: 'C2 - Config Value'
+            };
+            g.driver.SchemaMixin.makeId( data.c2, function( err, id ) {
+              test.ifError( err );
+              data.c2.id = id;
 
-                    var p1 = {
-                      name   : 'Tony',
-                      surname: 'Mobily',
-                      age: 38
-                    };
-                    g.driver.SchemaMixin.makeId( p1, function( err, id ) {
-                      test.ifError( err );
-                      p1.id = id;
-                      p1.motherId = p1.id;
-                      p1.configId = c1.id;
+              configR.insert( data.c2, function( err ){
+                if( err ) return cb( err );
 
-                      ops.push( { table: peopleR, op: 'insert', data: p1 } );
+                configR.select( { },  function( err, results, total ){
+                  test.ifError( err );
+    
+                  test.equal( total, 2 );
+                  compareCollections( test, [ data.c1, data.c2 ], results );
 
-                      var p2 = {
-                        name   : 'Chiara',
-                        surname: 'Mobily',
-                        age: 24
-                      };
-                      g.driver.SchemaMixin.makeId( p2, function( err, id ) {
-                        test.ifError( err );
-                        p2.id = id;
-                        p2.motherId = p1.id;
-                        p2.configId = c1.id;
-
-                        ops.push( { table: peopleR, op: 'insert', data: p2 } );
-
-                        var p3 = {
-                          name   : 'Sara',
-                          surname: 'Fabbietti',
-                          age:14 
-                        };
-                        g.driver.SchemaMixin.makeId( p3, function( err, id ) {
-                          test.ifError( err );
-                          p3.id = id;
-                          p3.motherId = p3.id;
-                          p3.configId = c2.id;
-
-                          ops.push( { table: peopleR, op: 'insert', data: p3 } );
-
-                         // Add three addresses
-
-                          var a1 = {
-                            personId: p1.id,
-                            street  : 'bitton',
-                            city    : 'perth',
-                            configId: c1.id
-                          };
-                          g.driver.SchemaMixin.makeId( a1, function( err, id ) {
-                            test.ifError( err );
-                            a1.id = id;
-
-                            ops.push( { table: addressesR, op: 'insert', data: a1 } );
-
-                            var a2 = {
-                              personId: p1.id,
-                              street  : 'ivermey',
-                              city    : 'perth',
-                              configId: c2.id
-                            };
-
-                            g.driver.SchemaMixin.makeId( a2, function( err, id ) {
-                              test.ifError( err );
-                              a2.id = id;
-
-                              ops.push( { table: addressesR, op: 'insert', data: a2 } );
-
-                              var a3 = {
-                                personId: p2.id,
-                                street  : 'samson',
-                                city    : 'perth',
-                                configId: c3.id
-                              };
-
-                              g.driver.SchemaMixin.makeId( a3, function( err, id ) {
-                                test.ifError( err );
-                                a3.id = id;
-
-                                ops.push( { table: addressesR, op: 'insert', data: a3 } );
-
-                                // Change of address -- bitton
-                                var a1c = {};
-                                a1c.street = "bitton CHANGED";
-                                a1c.personId = a1.personId;
-                                a1c.id = a1.id;
-                                ops.push( { deleteUnsetFields: false, table: addressesR, op: 'update', options: { multi: false }, data: a1c } );
-
-                                // Change of address -- ivermey
-                                var a2c = {};
-                                a2c.street = "ivermey CHANGED";
-                                a2c.personId = a2.personId;
-                                a2c.id = a2.id;
-                                ops.push( { deleteUnsetFields: false, table: addressesR, op: 'update', selector: { conditions: { and: [ { field: 'street', type: 'eq', value: 'ivermey' }   ]  } }, options: { multi: true }, data: a2c } );
+                  cb( null );
+                });
+              });
+            });
+          }; 
 
  
-                                var p1c = {}; for( var k in p1 ) p1c[ k ] = p1[ k ];
-                                delete p1c.surname;
-                                p1c.name = "Tony CHANGED";
-                                p1c.configId = c2.id;
-                                ops.push( { table: peopleR, op: 'update', data: p1c, deleteUnsetFields: true } );
 
-                              /*
-                                var c1c = {}; for( var k in c1 ) c1c[ k ] = c1[ k ];
-                                c1c.config1 = "C1 - Config Line One CHANGED";
-                                ops.push( { table: configR, op: 'update', data: c1c } );
+          function insertFirstPerson( cb ){
 
-                                ops.push( { 
-                                  table: peopleR, 
-                                  op: 'update', 
-                                  data: { configId: c3.id },
-                                  selector: { conditions: { and: [ { field: 'surname', type: 'eq', value: 'mobily' }   ]  }   },
-                                  options: { multi: true },
-                                 });
+            console.log("Running insertFirstPerson...");
 
-                               */
-                                
+            data.p1 = {
+              name   : 'Tony',
+              surname: 'Mobily',
+              age: 38,
+              configId: data.c1.id
+            };
+            g.driver.SchemaMixin.makeId( data.p2, function( err, id ) {
+              test.ifError( err );
 
-                                ops.push( { table: addressesR, op: 'delete', data: a2 } );
+              data.p1.id = id;
 
-                                // ops.push( { table: configR, op: 'delete', data: c2 } );
-                                ops.push( { table: configR, op: 'delete', data: c2, selector: { conditions: { and: [ { field: 'config1', type: 'eq', value: 'C2 - Config Line One' }   ]  }  } } );
+              peopleR.insert( data.p1, function( err ){
+                if( err ) return cb( err );
+
+                peopleR.select( { },  { children: true }, function( err, results, total ){
+                  test.ifError( err );
+   
+                  // Only one result came back
+                  test.equal( total, 1 );
+
+                  var singleResult = results[ 0 ];
+
+                  // Check that configId and addressesR are there and are correct
+                  compareItems( test, singleResult._children.configId, data.c1 );
+                  test.deepEqual( singleResult._children.addressesR, [] );
+                  
+                  // Check that results EXCLUDING children are correct
+                  delete singleResult._children;  
+                  compareItems( test, results[ 0 ], data.p1 );
+
+                  cb( null );
+                });
+              });
+            });
+          }; 
+
+          function insertFirstAddress( cb ){
+
+            console.log("Running insertFirstAddress...");
+
+            data.a1 = {
+              personId: data.p1.id,
+              street  : 'bitton',
+              city    : 'perth',
+              configId: data.c1.id
+            };
+            g.driver.SchemaMixin.makeId( data.a1, function( err, id ) {
+              test.ifError( err );
+              data.a1.id = id;
 
 
-                                cb( null, ops );
-                              });
-                            });
-                          });
-                        });
-                      });
-                    });
+              addressesR.insert( data.a1, function( err ){
+                if( err ) return cb( err );
+
+                addressesR.select( { },  { children: true }, function( err, results, total ){
+                  test.ifError( err );
+   
+                  // Only one result came back
+                  test.equal( total, 1 );
+
+                  var singleResult = results[ 0 ];
+
+                  // Check that configId and addressesR are there and are correct
+                  compareItems( test, singleResult._children.configId, data.c1 );
+                  compareItems( test, singleResult._children.personId, data.p1 );
+                  
+                  // Check that results EXCLUDING children are correct
+                  delete singleResult._children;  
+                  compareItems( test, singleResult, data.a1 );
+
+
+                  // CHECKING PEOPLE (the address must be added as a child record)
+                  peopleR.select( { },  { children: true }, function( err, results, total ){
+                    test.ifError( err );
+   
+                    // Only one result came back
+                    test.equal( total, 1 );
+
+                    var singleResult = results[ 0 ];
+
+                    // Check that configId and addressesR are there and are correct
+                    compareItems( test, singleResult._children.configId, data.c1 );
+                    compareCollections( test, singleResult._children.addressesR, [ data.a1 ] );
+
+                    // Check that results EXCLUDING children are correct
+                    delete singleResult._children;
+                    compareItems( test, singleResult, data.p1 );
+
+                    cb( null );
                   });
                 });
               });
-            }
-          );
+            });
+          }; 
 
-        }
-        
-        console.log("INITIALISING LAYERS..." );
-        SimpleDbLayer.initLayers();
+          function insertSecondAddress( cb ){
 
-        //SimpleDbLayer.getLayer('peopleR').makeAllIndexes( { background: true }, function( err ){
-        //  if( err ){
-        //    console.log("Error building the indexes for peopleR!");
-        //    console.log( err );
-        //  }
-        //});
-
-        Object.keys( SimpleDbLayer.registry ).forEach( function( k ) {
-
-          var item = SimpleDbLayer.registry[ k ];
-          console.log("\nK IS:", k );
-          console.log("DEBUG1 ITEM: ",  item );
-          console.log("Table: ", item.table );
-          console.log("Searchable hash:", item._searchableHash );
-          console.log("Permutation groups:", item._permutationGroups );
-        });
-        // Get started with the actual adding and testing
-        prepareGround( function( err, ops ) {
+            data.a2 = {
+              personId: data.p1.id,
+              street  : 'samson',
+              city    : 'perth',
+            };
+            g.driver.SchemaMixin.makeId( data.a2, function( err, id ) {
+              test.ifError( err );
+              data.a2.id = id;
 
 
-        
+              addressesR.insert( data.a2, function( err ){
+                if( err ) return cb( err );
 
-          async.eachSeries(
-            ops,
-            function( item, cb ){
-              if( item.op == 'insert' ){
-                console.log("\n\n");
-                console.log("INSERTING INTO", item.table.table );
-                item.table.insert( item.data, cb );
+                addressesR.select( { },  { children: true }, function( err, results, total ){
+                  test.ifError( err );
+   
+                  // Only one result came back
+                  test.equal( total, 2 );
 
-              } else if( item.op == 'update' ){
+                  // Check that personId is correct in both cases
+                  compareItems( test, results[ 0 ]._children.personId, data.p1 );
+                  compareItems( test, results[ 1 ]._children.personId, data.p1 );
+                  
+                  // Check that results EXCLUDING children are correct
+                  delete results[ 0 ]._children;  
+                  delete results[ 1 ]._children;  
+                  compareCollections( test, [ data.a1, data.a2 ], results );
 
-                var options = item.options || {};
-                var selector = item.selector || { conditions: { and: [ { field: 'id', type: 'eq', value: item.data.id }   ]  }   };
-                if( item.deleteUnsetFields ) options.deleteUnsetFields = true;
+                  // CHECKING PEOPLE (the address must be added as a child record)
+                  peopleR.select( { },  { children: true }, function( err, results, total ){
+                    test.ifError( err );
+   
+                    // Only one result came back
+                    test.equal( total, 1 );
 
-                console.log("\n\n");
-                console.log("UPDATING THIS", item.data, selector.conditions, options );
+                    var singleResult = results[ 0 ];
 
-                item.table.update( selector, item.data, options, cb );
+                    // Check that configId and addressesR are there and are correct
+                    compareItems( test, singleResult._children.configId, data.c1 );
+                    compareCollections( test, singleResult._children.addressesR, [ data.a1, data.a2 ] );
 
-              } else if( item.op == 'delete' ){
-                var selector = item.selector || { conditions: { and: [ { field: 'id', type: 'eq', value: item.data.id }   ]  }   };
-                var options = item.options || {};
+                    // Check that results EXCLUDING children are correct
+                    delete singleResult._children;
+                    compareItems( test, singleResult, data.p1 );
 
-                console.log("\n\n");
-                console.log("DELETING THIS", item.table.table, item.data.id );
-                item.table.delete( { conditions: { and: [ { field: 'id', type: 'eq', value: item.data.id }   ]  }   }, options, cb );
-              } else {
-                cb( null );
-              }
-            },
-            function( err ){
+                    cb( null );
+                  });
+                });
+              });
+            });
+          }
+
+
+          function insertSecondPerson( cb ){
+
+            console.log("Running insertSecondPerson...");
+
+            data.p2 = {
+              name   : 'Chiara',
+              surname: 'Mobily',
+              age: 24,
+              configId: data.c2.id
+            };
+            g.driver.SchemaMixin.makeId( data.p2, function( err, id ) {
               test.ifError( err );
 
-              
-              //SimpleDbLayer.getLayer('addressesR').makeAllIndexes( {}, function( err ){
+              data.p2.id = id;
 
-              test.done();
-            }
-          );
-        });
+              peopleR.insert( data.p2, function( err ){
+                if( err ) return cb( err );
 
+                peopleR.select( { conditions: { and: [ { field: 'name', type: 'is', value: 'Chiara'  }   ]  }  },  { children: true }, function( err, results, total ){
+                  test.ifError( err );
+   
+                  // Only one result came back
+                  test.equal( total, 1 );
+
+                  var singleResult = results[ 0 ];
+
+                  // Check that configId and addressesR are there and are correct
+                  compareItems( test, singleResult._children.configId, data.c2 );
+                  test.deepEqual( singleResult._children.addressesR, [] );
+                  
+                  // Check that results EXCLUDING children are correct
+                  delete singleResult._children;  
+                  compareItems( test, results[ 0 ], data.p2 );
+
+                  cb( null );
+                });
+              });
+            });
+          }; 
+
+
+          function insertThirdPerson( cb ){
+
+            console.log("Running insertThirdPerson...");
+
+            data.p3 = {
+              name   : 'Sara',
+              surname: 'Fabbietti',
+              age: 14,
+              configId: data.c2.id
+            };
+            g.driver.SchemaMixin.makeId( data.p3, function( err, id ) {
+              test.ifError( err );
+
+              data.p3.id = id;
+
+              peopleR.insert( data.p3, function( err ){
+                if( err ) return cb( err );
+
+                peopleR.select( { conditions: { and: [ { field: 'name', type: 'is', value: 'Sara'  }   ]  }  },  { children: true }, function( err, results, total ){
+                  test.ifError( err );
+   
+                  // Only one result came back
+                  test.equal( total, 1 );
+
+                  var singleResult = results[ 0 ];
+
+                  // Check that configId and addressesR are there and are correct
+                  compareItems( test, singleResult._children.configId, data.c2 );
+                  test.deepEqual( singleResult._children.addressesR, [] );
+                  
+                  // Check that results EXCLUDING children are correct
+                  delete singleResult._children;  
+                  compareItems( test, results[ 0 ], data.p3 );
+
+                  cb( null );
+                });
+              });
+            });
+          }; 
+
+          function insertThirdAddress( cb ){
+
+            console.log("Running insertThirdAddress...");
+
+            data.a3 = {
+              personId: data.p2.id,
+              street  : 'ivermey',
+              city    : 'perth',
+              configId: data.c2.id
+            };
+            g.driver.SchemaMixin.makeId( data.a3, function( err, id ) {
+              test.ifError( err );
+              data.a3.id = id;
+
+
+              addressesR.insert( data.a3, function( err ){
+                if( err ) return cb( err );
+
+                addressesR.select( { conditions: { and: [ { field: 'street', type: 'is', value: 'ivermey' }  ]   }  },  { children: true }, function( err, results, total ){
+                  test.ifError( err );
+   
+                  // Only one result came back
+                  test.equal( total, 1 );
+
+                  var singleResult = results[ 0 ];
+
+                  // Check that configId and addressesR are there and are correct
+                  compareItems( test, singleResult._children.configId, data.c2 );
+                  compareItems( test, singleResult._children.personId, data.p2 );
+                  
+                  // Check that results EXCLUDING children are correct
+                  delete singleResult._children;  
+                  compareItems( test, singleResult, data.a3 );
+
+
+                  // CHECKING PEOPLE (the address must be added as a child record)
+                  peopleR.select( { conditions: { and: [ { field: 'name', type: 'is', value: 'Chiara'  }   ]  } },  { children: true }, function( err, results, total ){
+                    test.ifError( err );
+   
+                    // Only one result came back
+                    test.equal( total, 1 );
+
+                    var singleResult = results[ 0 ];
+
+                    // Check that configId and addressesR are there and are correct
+                    compareItems( test, singleResult._children.configId, data.c2 );
+                    compareCollections( test, singleResult._children.addressesR, [ data.a3 ] );
+
+                    // Check that results EXCLUDING children are correct
+                    delete singleResult._children;
+                    //compareItems( test, singleResult, data.p3 );
+                    //compareItems( test, singleResult, data.a3 );
+
+                    cb( null );
+                  });
+                });
+              });
+            });
+          }; 
+
+          function updateSingleConfig( cb ){
+
+            console.log("Running updateSingleConfig...");
+
+            configR.update( { conditions: { and: [ { field: 'id', type: 'is', value: data.c2.id } ]  } }, { configField: 'C2 - Config Field CHANGED', configValue: 'C2 - Config Value CHANGED' }, { multi: false }, function( err ){
+
+              test.ifError( err );
+
+              var c2Changed = {
+                id: data.c2.id,
+                configField: 'C2 - Config Field CHANGED',
+                configValue: 'C2 - Config Value CHANGED'
+              }
+
+
+              peopleR.select( {}, { children: true }, function( err, results ){
+
+                results.forEach( function( person ){
+
+                  switch( person.name ){
+                    case 'Tony':
+                      compareItems( test, person._children.configId, data.c1 );
+                    break;
+
+                    case 'Chiara':
+                      compareItems( test, person._children.configId, c2Changed );
+                    break;
+
+                    case 'Sara':
+                      compareItems( test, person._children.configId, c2Changed );
+                    break;
+
+                    default:
+                     test.ok( false, "Name not recognised?" ); 
+                    break;                    
+                  }
+                });
+
+                addressesR.select( {}, { children: true }, function( err, results ){
+
+                  results.forEach( function( address ){
+
+                    switch( address.street ){
+                      case 'bitton':
+                        compareItems( test, address._children.configId, data.c1 );
+                      break;
+
+                      case 'ivermey':
+                        compareItems( test, address._children.configId, c2Changed );
+                      break;
+
+                      case 'samson':
+                        test.ok( typeof( address._children.configId ) === 'undefined', "_children.configId should be undefined as configId is undefined" );
+                      break;
+
+                      default:
+                       test.ok( false, "Street not recognised?" ); 
+                      break;                    
+                    }
+                  });
+
+                  return cb( null );;
+
+                });
+              });
+
+            });
+          };
+
+          function updateMultipleConfig( cb ){
+
+            console.log("Running updateMultipleConfig...");
+
+            configR.update( { conditions: { and: [ { field: 'configField', type: 'is', value: "C2 - Config Field CHANGED" } ]  } }, { configField: 'C2 - Config Field CHANGED AGAIN', configValue: 'C2 - Config Value CHANGED AGAIN' }, { multi: true }, function( err ){
+
+              test.ifError( err );
+
+              var c2Changed = {
+                id: data.c2.id,
+                configField: 'C2 - Config Field CHANGED AGAIN',
+                configValue: 'C2 - Config Value CHANGED AGAIN'
+              }
+
+              peopleR.select( {}, { children: true }, function( err, results ){
+
+                results.forEach( function( person ){
+
+                  switch( person.name ){
+                    case 'Tony':
+                      compareItems( test, person._children.configId, data.c1 );
+                    break;
+
+                    case 'Chiara':
+                      compareItems( test, person._children.configId, c2Changed );
+                    break;
+
+                    case 'Sara':
+                      compareItems( test, person._children.configId, c2Changed );
+                    break;
+
+                    default:
+                     test.ok( false, "Name not recognised?" ); 
+                    break;                    
+                  }
+                });
+
+                addressesR.select( {}, { children: true }, function( err, results ){
+
+                  results.forEach( function( address ){
+
+                    switch( address.street ){
+                      case 'bitton':
+                        compareItems( test, address._children.configId, data.c1 );
+                        console.log("DEBUG:", data.c2, address._children.configId );
+                      break;
+
+                      case 'ivermey':
+                        compareItems( test, address._children.configId, c2Changed );
+                      break;
+
+                      case 'samson':
+                        test.ok( typeof( address._children.configId ) === 'undefined', "_children.configId should be undefined as configId is undefined" );
+                      break;
+
+                      default:
+                       test.ok( false, "Street not recognised?" ); 
+                      break;                    
+                    }
+                  });
+
+                  return cb( null );;
+
+                });
+              });
+
+            });
+          };
+
+          // TODO: Finish this
+          function updateSingleAddress( cb ){
+
+            console.log("Running updateSingleAddress...");
+
+            addressesR.update( { conditions: { and: [ { field: 'id', type: 'is', value: data.a1.id } ]  } }, { street: 'bitton CHANGED' }, { multi: false }, function( err ){
+
+              test.ifError( err );
+
+              var a1Changed = {
+                id: data.a1.id,
+                street: 'bitton CHANGED',
+                city: 'perth'
+              }
+
+              peopleR.select( {}, { children: true }, function( err, results ){
+
+                results.forEach( function( person ){
+
+                  switch( person.name ){
+                    case 'Tony':
+                      compareItems( test, person._children.configId, data.c1 );
+                    break;
+
+                    case 'Chiara':
+                      compareItems( test, person._children.configId, c2Changed );
+                    break;
+
+                    case 'Sara':
+                      compareItems( test, person._children.configId, c2Changed );
+                    break;
+
+                    default:
+                     test.ok( false, "Name not recognised?" ); 
+                    break;                    
+                  }
+                });
+
+                addressesR.select( {}, { children: true }, function( err, results ){
+
+                  results.forEach( function( address ){
+
+                    switch( address.street ){
+                      case 'bitton':
+                        compareItems( test, address._children.configId, data.c1 );
+                      break;
+
+                      case 'ivermey':
+                        compareItems( test, address._children.configId, c2Changed );
+                      break;
+
+                      case 'samson':
+                        test.ok( typeof( address._children.configId ) === 'undefined', "_children.configId should be undefined as configId is undefined" );
+                      break;
+
+                      default:
+                       test.ok( false, "Street not recognised?" ); 
+                      break;                    
+                    }
+                  });
+
+                  return cb( null );;
+
+                });
+              });
+
+            });
+          };
+
+ 
+          async.series( [ 
+
+            insertFirstConfigRecord, 
+            insertSecondConfigRecord,
+            insertFirstPerson,
+            insertFirstAddress,
+            insertSecondAddress,
+            insertSecondPerson,
+            insertThirdPerson,
+            insertThirdAddress,
+
+            updateSingleConfig,
+            updateMultipleConfig,
+
+
+          ], function( err ){
+            test.ifError( err );
+
+            test.done();
+          });
+        });  
       });
     },
-
-
   }
+
+
 
   if( typeof( makeExtraTests ) === 'function' ){
     
