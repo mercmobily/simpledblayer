@@ -12,6 +12,7 @@ var
   dummy
 
 , declare = require('simpledeclare')
+, async = require('async')
 ;
 
 var consolelog = function(){
@@ -34,6 +35,10 @@ var SimpleDbLayer = declare( null, {
   _permutationGroups: {},
   _permutationPrefixes: {},
   _searchableHash: {},
+  _sortableHash: {},
+
+  positionField: null,
+  positionBase: [],
 
   table: '',
   childrenField: '_children',
@@ -57,12 +62,24 @@ var SimpleDbLayer = declare( null, {
       throw( new Error("SimpleDbLayer's constructor requires a 'schema' in options") );
     }
 
-    // idProperty needs to be defined
+    // idProperty needs to be defined, AND it needs to be defined in the schema
+    // Plus, make sure it's required
     if( typeof( options.idProperty ) === 'undefined' ){
       throw( new Error("SimpleDbLayer's constructor requires an 'idProperty' in options") );
     }
+    if( typeof( options.schema.structure[ options.idProperty ] ) === 'undefined' ){
+      throw( new Error("idProperty needs to be a field in the schema") );
+    }
+    options.schema.structure[ options.idProperty ].required = true;
 
-   
+    // Assigning positionField and positionBase
+    if( typeof( options.positionField ) !== 'undefined' ){
+      self.positionField = options.positionField;
+    }
+    if( typeof( options.positionBase ) !== 'undefined' ){
+      self.positionBase = options.positionBase;
+    }
+ 
     // Gets its own variables, avoid using the ptototype
     self.childrenTablesHash = {};
     self.lookupChildrenTablesHash = {};
@@ -71,8 +88,7 @@ var SimpleDbLayer = declare( null, {
 
     self._permutationGroups = { __main: { prefixes: {}, fields: {} } };
     self._searchableHash = {};
-
-
+    self._sortableHash = {};
 
     // Add entries to _searchableHash: add whichever field is marked as "searchable" or "permute" in the
     // schema.
@@ -82,6 +98,7 @@ var SimpleDbLayer = declare( null, {
 
       var entryType = entry.type === 'string' ? 'upperCase' : true;
 
+      if( entry.sortable )                           self._sortableHash[ field ] = true;
       if( entry.searchable )                         self._searchableHash[ field ] = entryType;
       if( entry.searchable && entry.permute )        self._permutationGroups.__main.fields[ field ] = entryType;
       if( entry.searchable && entry.permutePrefix )  self._permutationGroups.__main.prefixes[ field ] = entryType;
@@ -120,6 +137,7 @@ var SimpleDbLayer = declare( null, {
     self.idProperty = options.idProperty;
     self.nested = options.nested;
     self.table = table;
+
 
     if( typeof( SimpleDbLayer.registry ) === 'undefined' ) SimpleDbLayer.registry = {}; 
     // Add this very table to the registry
@@ -166,7 +184,6 @@ var SimpleDbLayer = declare( null, {
 
       // Adding this child to the parent
       // (With the right subkey)
-
       var thisLayerObject = { layer: childLayer, nestedParams: childNestedParams };
       self.childrenTablesHash[ subName ] =  thisLayerObject;
       if( childNestedParams.type === 'lookup' ) self.lookupChildrenTablesHash[ subName ] = thisLayerObject;
@@ -198,7 +215,6 @@ var SimpleDbLayer = declare( null, {
         consolelog( entry );
 
         if( entry.searchable && entry.permute ){
-          
           self._permutationGroups[ field ] = self._permutationGroups[ field ] || { prefixes: {}, fields: {} };
           self._permutationGroups[ field ].fields[ field + '.' + k ] = entryType;
 
@@ -206,7 +222,6 @@ var SimpleDbLayer = declare( null, {
         }
 
         if( entry.searchable && entry.permutePrefix ){
-
           self._permutationGroups[ field ] = self._permutationGroups[ field ] || { prefixes: {}, fields: {} };
           self._permutationGroups[ field ].prefixes[ field + '.' + k ] = entryType;
 
@@ -215,11 +230,18 @@ var SimpleDbLayer = declare( null, {
  
         // If entry is searchable, add the field to the _searchableHash
         if( entry.searchable ){
-
-          // Mark the field as searchable
           self._searchableHash[ field + "." + k ] = entryType;
+
           consolelog("Field is searchable! So: ", field + "." + k, "will be searchable in father table" );
         }
+
+        // If entry is sortable, add the field to the _sortableHash
+        if( entry.sortable ){
+          self._sortableHash[ field + "." + k ] = entryType;
+
+          consolelog("Field is sortable! So: ", field + "." + k, "will be sortable in father table" );
+        }
+
       }); 
       
       consolelog("Making sure that join keys are searchable:" );
@@ -319,6 +341,33 @@ var SimpleDbLayer = declare( null, {
 
   },
 
+
+  // Handy function when creating permuted indexes
+
+  _permute: function( input ){
+    // THANK YOU http://stackoverflow.com/questions/9960908/permutations-in-javascript
+    // Permutation function
+    var permArr = [],
+    usedChars = [];
+    function main( input ){
+      var i, ch;
+      for (i = 0; i < input.length; i++) {
+        ch = input.splice(i, 1)[0];
+        usedChars.push(ch);
+        if (input.length == 0) {
+          permArr.push( usedChars.slice() );
+        }
+        main( input );
+        input.splice( i, 0, ch );
+        usedChars.pop();
+      }
+      return permArr;
+    }
+    return main(input);
+  },
+
+
+
   select: function( filters, options, cb ){
 
     // Usual drill
@@ -411,6 +460,31 @@ SimpleDbLayer.initLayers = function(){
 // Get layer from the class' registry
 SimpleDbLayer.getLayer = function( tableName ){
   return SimpleDbLayer.registry[ tableName ];
+}
+
+// Get all layers as a hash
+SimpleDbLayer.getAllLayers = function(){
+  return SimpleDbLayer.registry;
+}
+
+// TODO: test this
+SimpleDbLayer.makeAllIndexesAllLayers = function( options, cb ){
+
+  // This will contain the array of functions, one per layer
+  var indexMakers = [];
+
+  // Add one item to indexMakers for each table to reindex
+  Object.keys( SimpleDbLayer.getAllLayers() ).forEach( function( table ){
+
+    var layer = SimpleDbLayer.getLayer( table );
+    
+    indexMakers.push( function( cb ){
+      layer.makeAllIndexes( options, cb );
+    });
+
+  });
+
+  async.series( indexMakers, cb );
 }
 
 exports = module.exports = SimpleDbLayer;
