@@ -90,14 +90,17 @@ var compareCollections = function( test, a, b ){
   equal = ( a3 == b3 );
 
   if( ! equal ){
-    //test.fail( a, b, "Record sets do not match", "recordset comparison" );
-    console.log("MISMATCH BETWEEN:" );
-    console.log( a );
-    console.log( b );
+    test.fail( a, b, "Record sets do not match", "recordset comparison" );
+    //test.fail( a, b, console.log("MISMATCH BETWEEN:" );
+    //console.log( a );
+    //console.log( b );
+    //console.log( a3 );
+    //console.log( b3 );
+
     console.log( (new Error()).stack );
   }
 
-  test.ok( equal, "Record sets do not match" );
+  //test.ok( equal, "Record sets do not match" );
  
 }
 
@@ -180,7 +183,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       g.commonPeopleSchema = new SchemaMixin( {
         name   : { type: 'string', searchable: true, sortable: true },
         surname: { type: 'string', searchable: true, sortable: true },
-        age    : { type: 'number', searchable: true, sortable: true },
+        age    : { type: 'number', searchable: true, sortable: true, required: true },
       });
 
       test.done();
@@ -753,6 +756,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         test.ifError( err );
 
         g.people.update( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Mobily' } ] } }, { surname: 'Tobily' }, { multi: true }, function( err, howMany ){
+          test.ifError( err );
+
           test.deepEqual( howMany, 3 );
 
           g.people.select( { },  function( err, results, total ){
@@ -781,20 +786,15 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 test.equal( total, 4 );
 
 
-                g.people.update( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Lobily' } ] } }, { surname: 'Sobily' }, { deleteUnsetFields: true }, function( err, howMany ){
+                g.people.update( { conditions: { and: [ { field: 'name', type: 'is', value: 'Tony' } ] } }, { name: 'Tony', age: 38 }, { deleteUnsetFields: true }, function( err, howMany ){
 
                   test.equal( howMany, 1 );
 
-                  g.people.select( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Sobily' } ] } },  function( err, results, total ){
-
-                    console.log( results );
-
-                    if( howMany === 1 ){
-                      test.ok( typeof( results[ 0 ].name ) === 'undefined' || results[ 0 ].name === null || results[ 0 ].name ===  undefined );
-                      test.ok( typeof( results[ 0 ].age ) === 'undefined' || results[ 0 ].age === null || results[ 0 ].age ===  undefined );
-                    }
+                  g.people.select( { conditions: { and: [ { field: 'name', type: 'is', value: 'Tony' } ] } },  function( err, results, total ){
 
                     test.equal( total, 1 );
+
+                    compareItems( test, results[ 0 ], { age: 38, name: "Tony" } );
 
                     test.done();
                   })
@@ -807,6 +807,24 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         });
       })
     },
+
+    /*
+    "updates do not unset required fields": function( test ){
+      clearAndPopulateTestCollection( g, function( err ){
+        test.ifError( err );
+
+        test.throws(
+          function(){
+            g.people.update( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Mobily' } ] } }, { surname: 'Tobily' }, { multi: true, deleteUnsetFields: true }, function( err, howMany ){
+              if( err ) throw( err );
+            });
+          },
+          Error,
+          "should throw as passed 'deleteUnsetFields: true' and didn't pass all required fields"
+        );
+      })
+    },
+    */
 
     "refs": function( test ){
       clearAndPopulateTestCollection( g, function( err ){
@@ -1307,7 +1325,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
               test.ifError( err );
 
-              var c2Changed = {
+              data.c2 = {
                 id: data.c2.id,
                 configField: 'C2 - Config Field CHANGED',
                 configValue: 'C2 - Config Value CHANGED'
@@ -1324,11 +1342,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     case 'Chiara':
-                      compareItems( test, person._children.configId, c2Changed );
+                      compareItems( test, person._children.configId, data.c2 );
                     break;
 
                     case 'Sara':
-                      compareItems( test, person._children.configId, c2Changed );
+                      compareItems( test, person._children.configId, data.c2 );
                     break;
 
                     default:
@@ -1347,7 +1365,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                       break;
 
                       case 'ivermey':
-                        compareItems( test, address._children.configId, c2Changed );
+                        compareItems( test, address._children.configId, data.c2 );
                       break;
 
                       case 'samson':
@@ -1376,7 +1394,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
               test.ifError( err );
 
-              var c2Changed = {
+              data.c2 = {
                 id: data.c2.id,
                 configField: 'C2 - Config Field CHANGED AGAIN',
                 configValue: 'C2 - Config Value CHANGED AGAIN'
@@ -1392,11 +1410,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     case 'Chiara':
-                      compareItems( test, person._children.configId, c2Changed );
+                      compareItems( test, person._children.configId, data.c2 );
                     break;
 
                     case 'Sara':
-                      compareItems( test, person._children.configId, c2Changed );
+                      compareItems( test, person._children.configId, data.c2 );
                     break;
 
                     default:
@@ -1412,11 +1430,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     switch( address.street ){
                       case 'bitton':
                         compareItems( test, address._children.configId, data.c1 );
-                        console.log("DEBUG:", data.c2, address._children.configId );
                       break;
 
                       case 'ivermey':
-                        compareItems( test, address._children.configId, c2Changed );
+                        compareItems( test, address._children.configId, data.c2 );
                       break;
 
                       case 'samson':
@@ -1437,7 +1454,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             });
           };
 
-          // TODO: Finish this
           function updateSingleAddress( cb ){
 
             console.log("Running updateSingleAddress...");
@@ -1446,11 +1462,137 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
               test.ifError( err );
 
-              var a1Changed = {
+              data.a1 = {
+                personId: data.p1.id,
                 id: data.a1.id,
                 street: 'bitton CHANGED',
-                city: 'perth'
+                city: 'perth',
+                configId: data.c1.id,
               }
+
+              peopleR.select( {}, { children: true }, function( err, results ){
+
+                results.forEach( function( person ){
+
+                  switch( person.name ){
+                    case 'Tony':
+                      compareCollections( test, person._children.addressesR, [ data.a1, data.a2 ] );
+                    break;
+
+                    case 'Chiara':
+                      compareCollections( test, person._children.addressesR, [ data.a3 ] );
+                    break;
+
+                    case 'Sara':
+                      compareCollections( test, person._children.addressesR, [ ] );
+                    break;
+
+                    default:
+                     test.ok( false, "Name not recognised?" ); 
+                    break;                    
+                  }
+                });
+
+                addressesR.select( {}, { children: true }, function( err, results ){
+                  compareCollections( test, results, [ data.a1, data.a2, data.a3 ] );
+
+                  return cb( null );;
+
+                });
+              });
+
+            });
+          };
+
+          function updateMultipleAddresses( cb ){
+
+            console.log("Running updateMultipleAddresses...");
+
+            // This is skipped in mongoDb as it's not supported
+            if( require('path').basename( process.env.PWD ) === 'simpledblayer-mongo' ){
+              return cb( null );
+            }
+
+            console.log("DEBUG:");
+            console.log( process.env );
+           
+            console.log( require('path').basename( process.env.PWD ) );
+ 
+            // NOTE: This only works with 2.5 and up if using regexps
+            // https://jira.mongodb.org/browse/SERVER-1155 (fixed in 2.5.3)
+            addressesR.update( { conditions: { and: [ { field: 'city', type: 'eq', value: 'perth' } ]  } }, { city: 'perth2' }, { multi: true }, function( err ){
+
+              test.ifError( err );
+
+              data.a1 = {
+                id: data.a1.id,
+                personId: data.p1.id,
+                street: 'bitton CHANGED',
+                city: 'perth2',
+                configId: data.c1.id,
+              }
+
+              data.a2 = {
+                id      : data.a2.id,
+                personId: data.p1.id,
+                street  : 'samson',
+                city    : 'perth2',
+              };
+
+              data.a3 = {
+                id      : data.a3.id,
+                personId: data.p2.id,
+                street  : 'ivermey',
+                city    : 'perth',
+                configId: data.c2.id
+              };
+
+
+              peopleR.select( {}, { children: true }, function( err, results ){
+
+                results.forEach( function( person ){
+
+                  switch( person.name ){
+                    case 'Tony':
+                      compareCollections( test, person._children.addressesR, [ data.a1, data.a2 ] );
+                    break;
+
+                    case 'Chiara':
+                      compareCollections( test, person._children.addressesR, [ data.a3 ] );
+                    break;
+
+                    case 'Sara':
+                      compareCollections( test, person._children.addressesR, [ ] );
+                    break;
+
+                    default:
+                     test.ok( false, "Name not recognised?" ); 
+                    break;                    
+                  }
+                });
+
+                addressesR.select( {}, { children: true }, function( err, results ){
+                  compareCollections( test, results, [ data.a1, data.a2, data.a3 ] );
+
+                  return cb( null );;
+
+                });
+              });
+
+            });
+          };
+
+
+
+
+
+          function deleteSingleConfig( cb ){
+
+            console.log("Running deleteSingleConfig...");
+
+            configR.delete( { conditions: { and: [ { field: 'id', type: 'is', value: data.c2.id } ]  } }, { multi: false }, function( err ){
+
+              test.ifError( err );
 
               peopleR.select( {}, { children: true }, function( err, results ){
 
@@ -1462,11 +1604,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     case 'Chiara':
-                      compareItems( test, person._children.configId, c2Changed );
+                      test.deepEqual( person._children.configId, {} );
                     break;
 
                     case 'Sara':
-                      compareItems( test, person._children.configId, c2Changed );
+                      test.deepEqual( person._children.configId, {} );
                     break;
 
                     default:
@@ -1480,16 +1622,78 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                   results.forEach( function( address ){
 
                     switch( address.street ){
-                      case 'bitton':
+                      case 'bitton CHANGED':
                         compareItems( test, address._children.configId, data.c1 );
                       break;
 
                       case 'ivermey':
-                        compareItems( test, address._children.configId, c2Changed );
+                        test.deepEqual( address._children.configId, {} );
                       break;
 
                       case 'samson':
-                        test.ok( typeof( address._children.configId ) === 'undefined', "_children.configId should be undefined as configId is undefined" );
+                        test.ok( typeof( address._children.configId ) === 'undefined', "Address with Samson doesn't have configId defined" );
+                      break;
+
+                      default:
+                       test.ok( false, "Street not recognised?", address.street ); 
+                      break;                    
+                    }
+                  });
+
+                  return cb( null );;
+
+                });
+              });
+
+            });
+          };
+
+          function deleteMultipleConfig( cb ){
+
+            console.log("Running deleteMultipleConfig...");
+
+            configR.delete( {}, { multi: true }, function( err ){
+
+              test.ifError( err );
+
+              peopleR.select( {}, { children: true }, function( err, results ){
+
+                results.forEach( function( person ){
+
+                  switch( person.name ){
+                    case 'Tony':
+                      test.deepEqual( person._children.configId, {} );
+                    break;
+
+                    case 'Chiara':
+                      test.deepEqual( person._children.configId, {} );
+                    break;
+
+                    case 'Sara':
+                      test.deepEqual( person._children.configId, {} );
+                    break;
+
+                    default:
+                     test.ok( false, "Name not recognised?" ); 
+                    break;                    
+                  }
+                });
+
+                addressesR.select( {}, { children: true }, function( err, results ){
+
+                  results.forEach( function( address ){
+
+                    switch( address.street ){
+                      case 'bitton CHANGED':
+                        test.deepEqual( address._children.configId, {} );
+                      break;
+
+                      case 'ivermey':
+                        test.deepEqual( address._children.configId, {} );
+                      break;
+
+                      case 'samson':
+                        test.deepEqual( address._children.configId, {} );
                       break;
 
                       default:
@@ -1498,6 +1702,89 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     }
                   });
 
+                  return cb( null );;
+
+                });
+              });
+
+            });
+          };
+
+          function deleteSingleAddress( cb ){
+
+            console.log("Running deleteSingleAddress...");
+
+            addressesR.delete( { conditions: { and: [ { field: 'id', type: 'is', value: data.a3.id } ]  } }, { multi: false }, function( err ){
+
+              test.ifError( err );
+
+              peopleR.select( {}, { children: true }, function( err, results ){
+
+                results.forEach( function( person ){
+
+                  switch( person.name ){
+                    case 'Tony':
+                      compareCollections( test, person._children.addressesR, [ data.a1, data.a2 ] );
+                    break;
+
+                    case 'Chiara':
+                      compareCollections( test, person._children.addressesR, [ ] );
+                    break;
+
+                    case 'Sara':
+                      compareCollections( test, person._children.addressesR, [ ] );
+                    break;
+
+                    default:
+                     test.ok( false, "Name not recognised?" ); 
+                    break;                    
+                  }
+                });
+
+                addressesR.select( {}, { children: true }, function( err, results ){
+                  compareCollections( test, results, [ data.a1, data.a2 ] );
+
+                  return cb( null );;
+
+                });
+              });
+
+            });
+          };
+
+          function deleteMultipleAddresses( cb ){
+
+            console.log("Running deleteMultipleAddresses...");
+
+            addressesR.delete( { }, { multi: true }, function( err ){
+
+              test.ifError( err );
+
+              peopleR.select( {}, { children: true }, function( err, results ){
+
+                results.forEach( function( person ){
+
+                  switch( person.name ){
+                    case 'Tony':
+                      compareCollections( test, person._children.addressesR, [ ] );
+                    break;
+
+                    case 'Chiara':
+                      compareCollections( test, person._children.addressesR, [ ] );
+                    break;
+
+                    case 'Sara':
+                      compareCollections( test, person._children.addressesR, [ ] );
+                    break;
+
+                    default:
+                     test.ok( false, "Name not recognised?" ); 
+                    break;                    
+                  }
+                });
+
+                addressesR.select( {}, { children: true }, function( err, results ){
+                  compareCollections( test, results, [ ] );
                   return cb( null );;
 
                 });
@@ -1520,7 +1807,13 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             updateSingleConfig,
             updateMultipleConfig,
+            updateSingleAddress,
+            updateMultipleAddresses,
 
+            deleteSingleConfig,
+            deleteMultipleConfig,
+            deleteSingleAddress,
+            deleteMultipleAddresses,
 
           ], function( err ){
             test.ifError( err );
