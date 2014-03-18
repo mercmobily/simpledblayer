@@ -307,9 +307,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         g.people.select( { conditions: { and: [ { field: 'surname', type: 'startsWith', value: 'Mob' } ] } }, function( err, results, total ){
           test.ifError( err );
 
-          //console.log("ERROR HAPPENING NOW!");
-          //p.e.r=10;
-          //console.log("ERROR HAPPENED!");
+          
 
           var r = [
                     { name: 'Tony',      surname: 'Mobily',     age: 37 },

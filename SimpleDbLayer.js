@@ -16,7 +16,7 @@ var
 ;
 
 var consolelog = function(){
-  console.log.apply( console, arguments );
+  //console.log.apply( console, arguments );
 }
 
 
@@ -70,7 +70,9 @@ var SimpleDbLayer = declare( null, {
     if( typeof( options.schema.structure[ options.idProperty ] ) === 'undefined' ){
       throw( new Error("idProperty needs to be a field in the schema") );
     }
+    // idProperty NEEDS to be required and searchable
     options.schema.structure[ options.idProperty ].required = true;
+    options.schema.structure[ options.idProperty ].searchable = true;
 
     // Assigning positionField and positionBase
     if( typeof( options.positionField ) !== 'undefined' ){
@@ -106,9 +108,6 @@ var SimpleDbLayer = declare( null, {
 
     // Add more entries to _searchableHash: add all foreign keys in joins
     if( !Array.isArray( options.nested ) ) options.nested = [];
-
-    // Sets autoLoad hash for this layer
-    self.autoLoad = typeof( options.autoLoad ) === 'object' ? options.autoLoad : {};
 
     // Allow passing of SchemaError as an option. This error will be thrown when
     // the schema doesn't pass validation, with the `error` hash set
