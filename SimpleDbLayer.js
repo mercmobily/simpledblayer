@@ -466,7 +466,6 @@ SimpleDbLayer.getAllLayers = function(){
   return SimpleDbLayer.registry;
 }
 
-// TODO: test this
 SimpleDbLayer.makeAllIndexesAllLayers = function( options, cb ){
 
   // This will contain the array of functions, one per layer
@@ -485,6 +484,26 @@ SimpleDbLayer.makeAllIndexesAllLayers = function( options, cb ){
 
   async.series( indexMakers, cb );
 }
+
+SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
+
+  // This will contain the array of functions, one per layer
+  var indexMakers = [];
+
+  // Add one item to indexMakers for each table to reindex
+  Object.keys( SimpleDbLayer.getAllLayers() ).forEach( function( table ){
+
+    var layer = SimpleDbLayer.getLayer( table );
+    
+    indexMakers.push( function( cb ){
+      layer.dropAllIndexes( cb );
+    });
+
+  });
+
+  async.series( indexMakers, cb );
+}
+
 
 exports = module.exports = SimpleDbLayer;
 
