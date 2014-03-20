@@ -251,7 +251,7 @@ var SimpleDbLayer = declare( null, {
       else var field = childNestedParams.layer;
 
       Object.keys( childNestedParams.join ).forEach( function( key ){
-        console.log( "Forcing ", key, 'in table', childLayer.table, 'to be searchable' );
+        consolelog( "Forcing ", key, 'in table', childLayer.table, 'to be searchable' );
         childLayer._searchableHash[ key ] = true;
       });
 
