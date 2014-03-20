@@ -531,11 +531,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         g.people.select( { sort: { name: 1 } }, { useCursor: true }, function( err, cursor, total ){
           test.ifError( err );
  
-          console.log("ERR IS:", err );
- 
           test.notEqual( cursor, null );
           test.notEqual( cursor, undefined );
-          console.log("CURSOR IS:", cursor );
           test.equal( total, 4 );
           
           var r =  [
@@ -1468,6 +1465,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 configId: data.c1.id,
               }
 
+
               peopleR.select( {}, { children: true }, function( err, results ){
 
                 results.forEach( function( person ){
@@ -1511,11 +1509,13 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               return cb( null );
             }
 
-            console.log("DEBUG:");
-            console.log( process.env );
-           
-            console.log( require('path').basename( process.env.PWD ) );
+            // This is skipped in tingoDb as it's not supported
+            if( require('path').basename( process.env.PWD ) === 'simpledblayer-tingo' ){
+              return cb( null );
+            }
+
  
+
             // NOTE: This only works with 2.5 and up if using regexps
             // https://jira.mongodb.org/browse/SERVER-1155 (fixed in 2.5.3)
             addressesR.update( { conditions: { and: [ { field: 'city', type: 'eq', value: 'perth' } ]  } }, { city: 'perth2' }, { multi: true }, function( err ){
