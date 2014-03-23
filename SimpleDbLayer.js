@@ -115,6 +115,11 @@ var SimpleDbLayer = declare( null, {
       self.SchemaError = options.SchemaError;
     }
 
+    // Allow passing of hardLimitOfQuery as an option.
+    if( options.hardLimitOnQueries ){
+      self.hardLimitOnQueries = options.hardLimitOnQueries;
+    }
+
     // The `db` attribute can be passed to the constructor, or mixed in in advance
     // Check that the class has 'db' set (prototype, or coming from the constructor)
     if( typeof( db ) !== 'undefined' ){
@@ -434,18 +439,28 @@ var SimpleDbLayer = declare( null, {
     cb( null, null );
   },
 
-  relocation: function( positionField, record, afterRecord, cb ){
-    // console.log("REPOSITIONING BASING IT ON ", positionField, "RECORD: ", record, "TO GO AFTER:", afterRecord );
-    cb( null, 0 );
+  position: function( record, moveBeforeId, cb ){
+    cb( null );
   },
 
-  makeIndex: function( keys, options ){
-    //console.log("Called UNIMPLEMENTED makeIndex in collection ", this.table, ". Keys: ", keys );
+
+  makeIndex: function( keys, name, options, cb ){
+    cb( null );
   },
 
-  dropAllIndexes: function( ){
-    //console.log("Called UNIMPLEMENTED dropAllIndexes in collection ", this.table, ". Keys: ", keys );
+  dropIndex: function( name, cb ){
+    cb( null );
   },
+
+  dropAllIndexes: function( cb ){
+    cb( null );
+  },
+
+
+  generateSchemaIndexes: function( options, cb ){
+    cb( null );
+  },
+
 
 });
 
@@ -466,7 +481,7 @@ SimpleDbLayer.getAllLayers = function(){
   return SimpleDbLayer.registry;
 }
 
-SimpleDbLayer.makeAllIndexesAllLayers = function( options, cb ){
+SimpleDbLayer.generateSchemaIndexesAllLayers = function( options, cb ){
 
   // This will contain the array of functions, one per layer
   var indexMakers = [];
@@ -477,7 +492,7 @@ SimpleDbLayer.makeAllIndexesAllLayers = function( options, cb ){
     var layer = SimpleDbLayer.getLayer( table );
     
     indexMakers.push( function( cb ){
-      layer.makeAllIndexes( options, cb );
+      layer.generateSchemaIndexes( options, cb );
     });
 
   });
