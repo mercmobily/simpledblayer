@@ -106,7 +106,7 @@ var SimpleDbLayer = declare( null, {
       if( entry.searchable && entry.permutePrefix )  self._permutationGroups.__main.prefixes[ field ] = entryType;
     });
 
-    // Add more entries to _searchableHash: add all foreign keys in joins
+    // Give a sane default to options.nested
     if( !Array.isArray( options.nested ) ) options.nested = [];
 
     // Allow passing of SchemaError as an option. This error will be thrown when
@@ -439,7 +439,9 @@ var SimpleDbLayer = declare( null, {
     cb( null, null );
   },
 
-  position: function( record, moveBeforeId, cb ){
+  reposition: function( record, moveBeforeId, cb ){
+    if( typeof( cb ) === 'undefined' ) cb = function(){};
+
     cb( null );
   },
 

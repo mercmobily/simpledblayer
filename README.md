@@ -490,7 +490,7 @@ Imagine that you add some data:
 
 At this point, you decide to position the record with `id` 2 (chiara) _before_ the one with id `1`. Just run:
 
-    people.position( chiara, 1, function( err ){
+    people.reposition( chiara, 1, function( err ){
 
 The records' `position` field on the database will be updated so that they are in the right order.
 
