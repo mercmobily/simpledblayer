@@ -10,9 +10,9 @@ SimpleDbLayer is a module that will allow you to connect and query a DB server. 
 * It allows 1-level joins in queryes and data fetching. This means that you can load a record and have all of its "lookup" fields, or all of its 1:n children, pre-loaded.
 * It is written with very simple, Object Oriented code using [simpleDeclare](https://github.com/mercmobily/simpleDeclare)
 
-## TODO LATER
+## TODO
 
-Todo when everything is stable and non-structural but dangerous changes can be made:
+Todo when everything is stable and non-structural, non-API-changing changes can be made:
 
 * searchableHash -> change it to the field type, 'string', 'id', etc.
 * make DB a normal parameter, rather than the constructor's third parameter
@@ -683,21 +683,6 @@ Remember that class functions are inherited by subclasses when subclassing is do
       var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
 
 You can run `DbLayer.generateSchemaIndexesAllLayers()` as well as `SimpleDbLayer.generateSchemaIndexesAllLayers()`.
-
-# Position fields
-
-This module allows has a handy function that deals with "relocating":
-
-    relocation: function( positionField, idProperty, id, moveBeforeId, cb ){
-
-This function takes:
-
-* `positionField`. The field that will be used to store the elements' positions
-* `idProperty`. The ID property that will be used for record lookups
-* `id`. The ID of the record to be relocated 
-* `moveBeforeId`. The record before which `id` will be placed. Note that if `moveBeforeId` is `undefined` or `null`, the item will be placed last.
-
-The result is that the `positionField` field of each record is set in such a way so that the element with idProperty `id` is placed before the element with idProperty `moveBeforeId`.
 
 # Layer registry
 
