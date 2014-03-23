@@ -10,6 +10,7 @@ SimpleDbLayer is a module that will allow you to connect and query a DB server. 
 * It allows 1-level joins in queryes and data fetching. This means that you can load a record and have all of its "lookup" fields, or all of its 1:n children, pre-loaded.
 * It is written with very simple, Object Oriented code using [simpleDeclare](https://github.com/mercmobily/simpleDeclare)
 
+
 ## TODO
 
 Todo when everything is stable and non-structural, non-API-changing changes can be made:
