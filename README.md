@@ -574,13 +574,6 @@ The method `dropAllIndexes` will drop all indexes for the table/collection.
 
 This function is used to generate indexes depending on what fields are marked as `searchable` in the schema. The implementation of this depends on the capabilities and architecture of the database server you are using. The goal is to make sure that all searches are based on indexes.
 
-This function is "advised" by the layer's schema:
-
-* Every field marked as `searchable` is obviously indexed
-* Fields can also be marked as `permute` and `permuteBase`, which will likely affect the index creation
-
-## Straight searchable fields
-
 Imagine that you have a schema so defined:
 
     schema: new SimpleSchema({
@@ -591,80 +584,6 @@ Imagine that you have a schema so defined:
     }),
 
 The only searchable field is `surname`: an index will definitely be created to statisfy it
-
-## Compound indexes
-
-Imagine that you have a schema so defined:
-
-    schema: new SimpleSchema({
-      id: { type: 'id' },
-
-      email: { type: 'string', searchable: true },
-      deleted: { type: 'boolean', searchable: true },
-      type: { type: 'string', searchable: true }, // 'work', 'home', etc.
-    }),
-
-The searchable fields are `email` and `deleted`. However, you can be reasonably sure that every time an email address is searched, the `deleted` field will be searched. So, you can define them as `permute`:
-
-    schema: new SimpleSchema({
-      id: { type: 'id' },
-
-      email: { type: 'string', searchable: true, permute: true },
-      deleted: { type: 'boolean', permute: true },
-      type: { type: 'string', searchable: true }, // 'work', 'home', etc.
-    }),
-
-This will likely make sure that an index that includes `email` and `deleted` will be created, so that searching will be optimised.
-
-
-## Compound indexes (with prefixes)
-
-Imagine that you have a schema so defined:
-
-    schema: new SimpleSchema({
-      id: { type: 'id' },
-
-      workspaceId: { type: 'id' },
-      personId: { type: 'id' },
-
-      email: { type: 'string', searchable: true, permute: true },
-      deleted: { type: 'boolean', permute: true },
-      type: { type: 'string', searchable: true }, // 'work', 'home', etc.
-    }),
-
-
-This record obviously has a 1:n relationship with `workspaces` and `people` (a workspace has many people, each person has several email addresses attached to it). So, you can be reasonably sure that _most_ searches will include `workspaceId` and `personId`, as well as the other fields.
-
-You can define the schema as follows:
-
-    schema: new SimpleSchema({
-      id: { type: 'id' },
-
-      workspaceId: { type: 'id', permutePrefix: true },
-      personId: { type: 'id', permutePrefix: true },
-
-      email: { type: 'string', searchable: true, permute: true },
-      deleted: { type: 'boolean', permute: true },
-      type: { type: 'string', searchable: true }, // 'work', 'home', etc.
-    }),
-
-This will likely create compound indexes so that:
-
-* `workspaceId` and `personId` are included in each index, at the beginning
-* `email` and `deleted` are in the index as well
-
-The indexes resulting will likely be:
-
-* `workspaceId+personId+email+deleted
-* `workspaceId+personId+deleted+email
-
-The specific layer might also create:
-
-* `workspaceId+personId+type
-
-Permuted indexes should be used with care, as the number of indexes will increase exponentially as the number of "permuted" indexes grows. They should especially be used when a search is performed on very large tables, and you have a number of fields which might, or might not, be used to filter the results.
-
-## Class-wide functions to generate and delete indexes
 
 SimpleDbLayer provides two class-level functions that affect all the layers in the registry:
 
@@ -741,7 +660,7 @@ Here I will list the major changes I make to the library
 * There is a global layer registry, accessible as SimpleDbLayer.getLayer(), SimpleDbLayer.getAllLayers()
 * [index] New index functions makeAllIndexes(), dropAllIndexes(), makeIndex()
 * [index] Global index funcs SimpleDbLayer.makeAllIndexesAllLayers() and SimpleDbLayer.dropAllIndexesAllLayers()
-* [index] A field can be defined as permutePrefix ( will be used as prefix), and permute (will be permuted among others defined with permute).
+* [index] A field can be defined as indexPrefix ( will be used as prefix), and permute (will be permuted among others defined with permute).
 * [nested] It is now possible to define nested tables, for 1:n relationships and 1:1 (lookup) relationships
 * [nested] { children: true } option in select()
 * [nested] If using nested layers, SimpleDbLayer.initLayers() needs to be called before any db operation

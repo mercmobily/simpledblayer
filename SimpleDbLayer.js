@@ -32,8 +32,8 @@ var SimpleDbLayer = declare( null, {
   multipleChildrenTablesHash: {},
   parentTablesArray: [],
 
-  _permutationGroups: {},
-  _permutationPrefixes: {},
+  _indexGroups: { },
+
   _searchableHash: {},
   _sortableHash: {},
 
@@ -88,22 +88,23 @@ var SimpleDbLayer = declare( null, {
     self.multipleChildrenTablesHash = {};
     self.parentTablesArray = [];
 
-    self._permutationGroups = { __main: { prefixes: {}, fields: {} } };
+    self._indexGroups = { __main: { searchable: {} } };
+
     self._searchableHash = {};
     self._sortableHash = {};
 
-    // Add entries to _searchableHash: add whichever field is marked as "searchable" or "permute" in the
-    // schema.
+    // Add entries to _searchableHash and _indexGroups
     // This will assign either `true`, or `upperCase` (for strings)
     Object.keys( options.schema.structure ).forEach( function( field ) {
       var entry = options.schema.structure[ field ];
 
       var entryType = entry.type === 'string' ? 'upperCase' : true;
 
-      if( entry.sortable )                           self._sortableHash[ field ] = true;
-      if( entry.searchable )                         self._searchableHash[ field ] = entryType;
-      if( entry.searchable && entry.permute )        self._permutationGroups.__main.fields[ field ] = entryType;
-      if( entry.searchable && entry.permutePrefix )  self._permutationGroups.__main.prefixes[ field ] = entryType;
+      if( entry.searchable )                      self._searchableHash[ field ] = entryType;
+      if( entry.sortable )                        self._sortableHash[ field ] = true;
+
+      if( entry.searchable )                      self._indexGroups.__main.searchable[ field ] = entryType;
+
     });
 
     // Give a sane default to options.nested
@@ -202,8 +203,6 @@ var SimpleDbLayer = declare( null, {
 
       consolelog("The child Layer", childLayer.table, "at this point has the following parents: ", childLayer.parentTablesArray );
 
-      // Add more entries to _searchableHash and _permutationGroups: _all_ fields that are searchable/permutable
-      // in a child record
       consolelog("Adding entries to father's _searchableHash to make sure that searchable children fields are searchable");
       var field;
       if( childNestedParams.type === 'lookup' ) field = childNestedParams.parentField;
@@ -218,23 +217,15 @@ var SimpleDbLayer = declare( null, {
         consolelog( "Field:" , k, ", Entry for that field: -- type: ", entryType );
         consolelog( entry );
 
-        if( entry.searchable && entry.permute ){
-          self._permutationGroups[ field ] = self._permutationGroups[ field ] || { prefixes: {}, fields: {} };
-          self._permutationGroups[ field ].fields[ field + '.' + k ] = entryType;
-
-          consolelog("Field is permutable!" );
-        }
-
-        if( entry.searchable && entry.permutePrefix ){
-          self._permutationGroups[ field ] = self._permutationGroups[ field ] || { prefixes: {}, fields: {} };
-          self._permutationGroups[ field ].prefixes[ field + '.' + k ] = entryType;
-
-          consolelog("Field is a prefix for permutable!" );
-        }
- 
         // If entry is searchable, add the field to the _searchableHash
         if( entry.searchable ){
           self._searchableHash[ field + "." + k ] = entryType;
+
+          // Add the sub-table to the father's _indexGroups variable
+          // For now, _indexGroups is only really useful to MongoDb
+          self._indexGroups[ field ] = self._indexGroups[ field ] || { };
+          self._indexGroups[ field ].searchable = self._indexGroups[ field ].searchable || { };
+          self._indexGroups[ field ].searchable[ k ] = entryType;
 
           consolelog("Field is searchable! So: ", field + "." + k, "will be searchable in father table" );
         }
@@ -262,7 +253,8 @@ var SimpleDbLayer = declare( null, {
 
       consolelog("Parents searchable hash after cure:", parent._searchableHash );
 
-      // Create permutation groups for indexing
+      consolelog("Parents _indexGroups after cure:", parent._indexGroups );
+
     });
     consolelog("End of scanning");
 
@@ -343,31 +335,6 @@ var SimpleDbLayer = declare( null, {
 
     return saneRanges;
 
-  },
-
-
-  // Handy function when creating permuted indexes
-
-  _permute: function( input ){
-    // THANK YOU http://stackoverflow.com/questions/9960908/permutations-in-javascript
-    // Permutation function
-    var permArr = [],
-    usedChars = [];
-    function main( input ){
-      var i, ch;
-      for (i = 0; i < input.length; i++) {
-        ch = input.splice(i, 1)[0];
-        usedChars.push(ch);
-        if (input.length == 0) {
-          permArr.push( usedChars.slice() );
-        }
-        main( input );
-        input.splice( i, 0, ch );
-        usedChars.pop();
-      }
-      return permArr;
-    }
-    return main(input);
   },
 
 
