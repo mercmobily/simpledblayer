@@ -18,7 +18,6 @@ Todo when everything is stable and non-structural, non-API-changing changes can 
 * searchableHash -> change it to the field type, 'string', 'id', etc.
 * make DB a normal parameter, rather than the constructor's third parameter
 * take out "join" for lookup tables, since it can be inferred easily
-* make `children`, `chldrenField` definable as a parameter as well as class
 
 # Creating a layer
 

@@ -16,7 +16,7 @@ var
 ;
 
 var consolelog = function(){
-  //console.log.apply( console, arguments );
+//  console.log.apply( console, arguments );
 }
 
 
@@ -35,7 +35,7 @@ var SimpleDbLayer = declare( null, {
   _indexGroups: { },
 
   _searchableHash: {},
-  _sortableHash: {},
+  //_sortableHash: {},
 
   positionField: null,
   positionBase: [],
@@ -81,8 +81,13 @@ var SimpleDbLayer = declare( null, {
     if( typeof( options.positionBase ) !== 'undefined' ){
       self.positionBase = options.positionBase;
     }
+
+    // Assigning childrenField
+    if( typeof( options.childrenField ) !== 'undefined' ){
+      self.childrenField = options.childrenField;
+    }
  
-    // Gets its own variables, avoid using the ptototype
+    // Gets its own variables, avoid using the prototype's by accident
     self.childrenTablesHash = {};
     self.lookupChildrenTablesHash = {};
     self.multipleChildrenTablesHash = {};
@@ -91,7 +96,7 @@ var SimpleDbLayer = declare( null, {
     self._indexGroups = { __main: { searchable: {} } };
 
     self._searchableHash = {};
-    self._sortableHash = {};
+    //self._sortableHash = {};
 
     // Add entries to _searchableHash and _indexGroups
     // This will assign either `true`, or `upperCase` (for strings)
@@ -101,7 +106,7 @@ var SimpleDbLayer = declare( null, {
       var entryType = entry.type === 'string' ? 'upperCase' : true;
 
       if( entry.searchable )                      self._searchableHash[ field ] = entryType;
-      if( entry.sortable )                        self._sortableHash[ field ] = true;
+      //if( entry.sortable )                        self._sortableHash[ field ] = true;
 
       if( entry.searchable )                      self._indexGroups.__main.searchable[ field ] = entryType;
 
@@ -231,11 +236,11 @@ var SimpleDbLayer = declare( null, {
         }
 
         // If entry is sortable, add the field to the _sortableHash
-        if( entry.sortable ){
-          self._sortableHash[ field + "." + k ] = entryType;
+        //if( entry.sortable ){
+        //  self._sortableHash[ field + "." + k ] = entryType;
 
-          consolelog("Field is sortable! So: ", field + "." + k, "will be sortable in father table" );
-        }
+        //  consolelog("Field is sortable! So: ", field + "." + k, "will be sortable in father table" );
+        //}
 
       }); 
       
@@ -283,9 +288,15 @@ var SimpleDbLayer = declare( null, {
       // Sorry, no shortcuts here for now. Code will be optimised later
       // (maybe)
 
+      // Case: Nothing is set
+      if( sr.from === -1 && sr.to === -1 && sr.limit === -1 ){
+         sr.from = 0;
+         sr.to = self.hardLimitOnQueries || 1000;
+         sr.limit = self.hardLimitOnQueries || 1000;
+
       // Case: Only "limit" is set
       // - Set "from" and "to"
-      if( sr.from === -1 && sr.to === -1 && sr.limit !== -1 ){
+      } else if( sr.from === -1 && sr.to === -1 && sr.limit !== -1 ){
         sr.from = 0;
         sr.to = sr.limit - 1;
        
@@ -299,7 +310,7 @@ var SimpleDbLayer = declare( null, {
       // - Set "from" and "limit"
       } else if( sr.from === -1 && sr.to !== -1 && sr.limit === -1 ){
         sr.from = 0;
-        sr.limit =  saneRanges.to - saneRanges.from + 1;
+        sr.limit =  sr.to + 1;
  
       // Case: Only "from" and "limit" are set
       // - Set "to"
@@ -309,7 +320,7 @@ var SimpleDbLayer = declare( null, {
       // Case: Only "from" and "to" are set
       // - Set "limit"
       } else if( sr.from !== -1 && sr.to !== -1 && sr.limit === -1 ){
-        sr.limit =  saneRanges.to - saneRanges.from + 1;
+        sr.limit =  sr.to - sr.from + 1;
 
       // Case: Only "to" and "limit" are set
       // - Set "from"
@@ -442,6 +453,7 @@ SimpleDbLayer.initLayers = function(){
 }
 // Get layer from the class' registry
 SimpleDbLayer.getLayer = function( tableName ){
+  if( typeof( SimpleDbLayer.registry ) === 'undefined' ) return undefined;
   return SimpleDbLayer.registry[ tableName ];
 }
 
@@ -492,3 +504,4 @@ SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
 exports = module.exports = SimpleDbLayer;
 
 
+SimpleDbLayer.registry = {};
