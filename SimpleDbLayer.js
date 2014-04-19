@@ -296,8 +296,8 @@ var SimpleDbLayer = declare( null, {
       // Case: Nothing is set
       if( sr.from === -1 && sr.to === -1 && sr.limit === -1 ){
          sr.from = 0;
-         sr.to = self.hardLimitOnQueries || 1000;
-         sr.limit = self.hardLimitOnQueries || 1000;
+         sr.to = self.hardLimitOnQueries;
+         sr.limit = self.hardLimitOnQueries;
 
       // Case: Only "limit" is set
       // - Set "from" and "to"
