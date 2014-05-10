@@ -149,8 +149,8 @@ var SimpleDbLayer = declare( null, {
     self.table = table;
 
 
-    if( typeof( SimpleDbLayer.registry ) === 'undefined' ) SimpleDbLayer.registry = {}; 
     // Add this very table to the registry
+    if( typeof( SimpleDbLayer.registry ) === 'undefined' ) SimpleDbLayer.registry = {};
     SimpleDbLayer.registry[ table ] = self;
   },
 
