@@ -14,7 +14,7 @@ var
 
 , declare = require('simpledeclare')
 , SimpleSchema = require('simpleschema')
-, SimpleDbLayer = require('./SimpleDbLayer.js')
+, SimpleDbLayer = require('simpledblayer')
 , async = require('async')
 ;
 
