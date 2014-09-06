@@ -168,11 +168,12 @@ var SimpleDbLayer = declare( null, {
 
       // The parameter childNestedParams.layer is a string. It needs to be
       // converted to a proper table, now that they are all instantiated.
-      var originalLayerName = childNestedParams.layer;
-      childNestedParams.layer = SimpleDbLayer.registry[ childNestedParams.layer ];
+      if( typeof( childNestedParams.layer ) === 'string' ){
+        childNestedParams.layer = SimpleDbLayer.registry[ childNestedParams.layer ];
+      }
 
       if( !  childNestedParams.layer ){
-        throw( new Error("Layer requested in nested parameter not found: " + originalLayerName ) );
+        throw( new Error("Layer requested in nested parameter not found") );
       }
 
       var childLayer = childNestedParams.layer;
