@@ -13,11 +13,10 @@ var
 
 , declare = require('simpledeclare')
 , async = require('async')
+, debug = require('debug')
 ;
 
-var consolelog = function(){
-//  console.log.apply( console, arguments );
-}
+var consolelog = debug( 'simpledblayer:main');
 
 
 var SimpleDbLayer = declare( null, {

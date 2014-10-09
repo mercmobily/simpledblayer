@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "simpledeclare": "0.3.x",
-    "async": "0.2.x"
+    "async": "0.2.x",
+    "debug": "2.x"
   }
 }
