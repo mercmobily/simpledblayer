@@ -446,36 +446,36 @@ var SimpleDbLayer = declare( null, {
     cb( null );
   },
 
-
 });
 
 // Initialise all layers, creating relationship hashes
-SimpleDbLayer.initLayers = function(){
-  Object.keys( SimpleDbLayer.registry ).forEach( function( key ){
-    var table = SimpleDbLayer.registry[ key ];
-    table._makeTablesHashes();
+SimpleDbLayer.initLayers = function( Layer ){
+
+  Object.keys( Layer.registry ).forEach( function( key ){
+    var layer = Layer.registry[ key ];
+    layer._makeTablesHashes();
   });
 }
 // Get layer from the class' registry
-SimpleDbLayer.getLayer = function( tableName ){
-  if( typeof( SimpleDbLayer.registry ) === 'undefined' ) return undefined;
-  return SimpleDbLayer.registry[ tableName ];
+SimpleDbLayer.getLayer = function( Layer, tableName ){
+  if( typeof( Layer.registry ) === 'undefined' ) return undefined;
+  return Layer.registry[ tableName ];
 }
 
 // Get all layers as a hash
-SimpleDbLayer.getAllLayers = function(){
-  return SimpleDbLayer.registry;
+SimpleDbLayer.getAllLayers = function( Layer ){
+  return Layer.registry;
 }
 
-SimpleDbLayer.generateSchemaIndexesAllLayers = function( options, cb ){
+SimpleDbLayer.generateSchemaIndexesAllLayers = function( Layer, options, cb ){
 
   // This will contain the array of functions, one per layer
   var indexMakers = [];
 
   // Add one item to indexMakers for each table to reindex
-  Object.keys( SimpleDbLayer.getAllLayers() ).forEach( function( table ){
+  Object.keys( Layer.getAllLayers( Layer ) ).forEach( function( table ){
 
-    var layer = SimpleDbLayer.getLayer( table );
+    var layer = Layer.getLayer( Layer, table );
     
     indexMakers.push( function( cb ){
       layer.generateSchemaIndexes( options, cb );
@@ -486,15 +486,15 @@ SimpleDbLayer.generateSchemaIndexesAllLayers = function( options, cb ){
   async.series( indexMakers, cb );
 }
 
-SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
+SimpleDbLayer.dropAllIndexesAllLayers = function( Layer, options, cb ){
 
   // This will contain the array of functions, one per layer
   var indexMakers = [];
 
   // Add one item to indexMakers for each table to reindex
-  Object.keys( SimpleDbLayer.getAllLayers() ).forEach( function( table ){
+  Object.keys( Layer.getAllLayers( Layer ) ).forEach( function( table ){
 
-    var layer = SimpleDbLayer.getLayer( table );
+    var layer = Layer.getLayer( Layer, table );
     
     indexMakers.push( function( cb ){
       layer.dropAllIndexes( cb );
@@ -509,4 +509,3 @@ SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
 exports = module.exports = SimpleDbLayer;
 
 
-SimpleDbLayer.registry = {};
