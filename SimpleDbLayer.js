@@ -91,26 +91,7 @@ var SimpleDbLayer = declare( null, {
     self.lookupChildrenTablesHash = {};
     self.multipleChildrenTablesHash = {};
     self.parentTablesArray = [];
-
-    self._indexGroups = { __main: { searchable: {} } };
-
-    self._searchableHash = {};
-    //self._sortableHash = {};
-
-    // Add entries to _searchableHash and _indexGroups
-    // This will assign either `true`, or `upperCase` (for strings)
-    Object.keys( options.schema.structure ).forEach( function( field ) {
-      var entry = options.schema.structure[ field ];
-
-      var entryType = entry.type === 'string' ? 'upperCase' : true;
-
-      if( entry.searchable )                      self._searchableHash[ field ] = entryType;
-      //if( entry.sortable )                        self._sortableHash[ field ] = true;
-
-      if( entry.searchable )                      self._indexGroups.__main.searchable[ field ] = entryType;
-
-    });
-
+    
     // Give a sane default to options.nested
     if( !Array.isArray( options.nested ) ) options.nested = [];
 
@@ -141,18 +122,35 @@ var SimpleDbLayer = declare( null, {
     //}
     //self.tableRegistry[ table ] = true;
 
-    // Set the object's attributes: schema, nested, table
+    // Set the object's attributes: schema, idProperty, nested, table
     self.schema = options.schema;
     self.idProperty = options.idProperty;
     self.nested = options.nested;
     self.table = table;
 
-
-    // Add this very table to the registry
-    if( typeof( SimpleDbLayer.registry ) === 'undefined' ) SimpleDbLayer.registry = {};
-    SimpleDbLayer.registry[ table ] = self;
+    self._makeSearchableHashAndIndexGroups();
   },
 
+  _makeSearchableHashAndIndexGroups: function( options ){
+
+    var self = this;
+
+    self._indexGroups = { __main: { searchable: {} } };
+
+    self._searchableHash = {};
+   
+    // Add entries to _searchableHash and _indexGroups
+    // This will assign either `true`, or `upperCase` (for strings)
+    Object.keys( self.schema.structure ).forEach( function( field ) {
+      var entry = self.schema.structure[ field ];
+
+      var entryType = entry.type === 'string' ? 'upperCase' : true;
+
+      if( entry.searchable ) self._searchableHash[ field ] = entryType;
+      if( entry.searchable ) self._indexGroups.__main.searchable[ field ] = entryType;
+
+    });
+  },
 
   _makeTablesHashes: function(){
 
@@ -167,8 +165,10 @@ var SimpleDbLayer = declare( null, {
 
       // The parameter childNestedParams.layer is a string. It needs to be
       // converted to a proper table, now that they are all instantiated.
+      // The constructor will have a `registry` attribute, with the list of table
+      // already ins
       if( typeof( childNestedParams.layer ) === 'string' ){
-        childNestedParams.layer = SimpleDbLayer.registry[ childNestedParams.layer ];
+        childNestedParams.layer = self.constructor.registry[ childNestedParams.layer ];
       }
 
       if( !  childNestedParams.layer ){
