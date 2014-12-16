@@ -848,14 +848,14 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             { 
               layer: 'configR',
               join: { 'id': 'configId' }, 
-              parentField: 'configId',
+              localField: 'configId',
               type: 'lookup',
             },
 
             { 
               layer: 'peopleR',
               join: { 'id': 'motherId' }, 
-              parentField: 'motherId',
+              localField: 'motherId',
               type: 'lookup',
             },
 
@@ -878,14 +878,14 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             { 
               layer: 'configR',
               type: 'lookup',
-              parentField: 'configId',
+              localField: 'configId',
               join: { id: 'configId' }, 
             },
 
            { 
               layer: 'peopleR',
               type: 'lookup',
-              parentField: 'personId',
+              localField: 'personId',
               join: { id: 'personId' }, 
             },
 

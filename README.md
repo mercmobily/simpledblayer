@@ -10,13 +10,13 @@ SimpleDbLayer is a module that will allow you to connect and query a DB server. 
 * It allows 1-level joins in queryes and data fetching. This means that you can load a record and have all of its "lookup" fields, or all of its 1:n children, pre-loaded.
 * It is written with very simple, Object Oriented code using [simpleDeclare](https://github.com/mercmobily/simpleDeclare)
 
-
 ## TODO
 
 Todo when everything is stable and non-structural, non-API-changing changes can be made:
 
-* searchableHash -> change it to the field type, 'string', 'id', etc.
-* make DB a normal parameter, rather than the constructor's third parameter
+* [X] SearchableHash -> change it to the field type, 'string', 'id', etc.
+* [X] Make DB a normal parameter, rather than the constructor's third parameter
+* [X] Run safeMixin on all passed parameters
 * take out "join" for lookup tables, since it can be inferred easily
 
 # Creating a layer
@@ -44,7 +44,6 @@ In order to use this class, you will need to _mixin_ the basic SimpleDbLayer cla
 Here is how you make up the class:
 
     var mongo = require('mongodb');
-
     var declare = require('simpledeclare');
     var SimpleDbLayer = require('simpledblayer'); // This is the main class
     var SimpleSchema = require('simpleschema'); // This will be used to define the schema
@@ -98,7 +97,7 @@ Once you have your DbLayer class, it's up to you to create objects which will th
 Note how `people` is an object which will be tied to the table/collection `people`.
 The second parameter in the constructor is a set of parameters, which in this case include 1) The schema definition 2) the `idProperty`, which needs to be set and refer to an existing field.
 
-Simpleschema is an object based on [SimpleSchema](https://github.com/mercmobily/SimpleSchema), which provides a way to define extensible schemas with a very simple API. In this case, the `name` field is required whereas `surname` and `age` are not required but are searchable.
+Simpleschema is an constrctor based on [SimpleSchema](https://github.com/mercmobily/SimpleSchema), which provides a way to define extensible schemas with a very simple API. In this case, the `name` field is required whereas `surname` and `age` are not required but are searchable.
 
 The `id` field, since it was set as `isProperty`, is forced as `required` and `searchable`.
 
@@ -291,9 +290,9 @@ You can now define a layer as "child" of another one:
 
       nested: [
         {
+          type: 'multiple',
           layer: 'emails',
           join: { personId: 'id' },
-          type: 'multiple',
         },
       ]
 
@@ -311,10 +310,13 @@ You can now define a layer as "child" of another one:
 
       nested: [
         {
-          layer: 'people',
           type: 'lookup',
+          layer: 'people',          
+          layerField: 'id',
+          localField: 'personId' 
+       
           join: { id: 'personId' },
-          parentField: 'personId',
+         
         }
       ],
     } );
@@ -329,7 +331,7 @@ As you can see, each layer is created with an extra `nested` parameter, which de
 * `layer`. The layer you want to automatically load records from
 * `type`. How you want to load your records. If you use `multiple`, SimpleDbLayer will auto-load all children records; with `lookup`, it will only load one record
 * `join`. How the record will be looked up in the parent table. It's a hash object, where the key is the field _foreign_ to the layer that is being defined, and the value is the field _local_ to the layer that is being defined.
-* `parentField`. Only required when `type` is `lookup`, this is the name of the field in the `local` layer that is being defined that will be used.
+* `localField`. Only required when `type` is `lookup`, this is the name of the field in the `local` layer that is being defined that will be used.
 
 This functionality affects `select()` calls: basically, every time you fetch records, SimpleDbLayer will return a record with a `_children` hash.
 

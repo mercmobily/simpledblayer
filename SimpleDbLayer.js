@@ -18,116 +18,69 @@ var
 
 var consolelog = debug( 'simpledblayer:main');
 
-
 var SimpleDbLayer = declare( null, {
 
+  // Mandatory properties
+  table: null,
+  schema: null,
+  idProperty: null,
   db: null,
 
-  schema: {},
+  // Optional fields, defaults set here
+  positionField: null,
+  positionBase: [],
+  childrenField: '_children',
+  nested: [],
+  hardLimitOnQueries: 0,
   SchemaError: Error,
-  
+   
+  // Fields that will be redefined in constructor, here for aesthetic reasons 
   childrenTablesHash: {},
   lookupChildrenTablesHash: {},
   multipleChildrenTablesHash: {},
   parentTablesArray: [],
-
   _indexGroups: { },
-
   _searchableHash: {},
-  //_sortableHash: {},
 
-  positionField: null,
-  positionBase: [],
-
-  table: '',
-  childrenField: '_children',
-
-  hardLimitOnQueries: 0,
-
-  constructor: function( table,  options, db ){
+  constructor: function( options ){
 
     var self = this;
 
-    // Get 'options' ready
-    if( typeof( options ) === 'undefined' || options == null ) options = {};
+    options = options || {};
 
-    // table needs to be defined
-    if( typeof( table ) === 'undefined' ){
-      throw( new Error("SimpleDbLayer's constructor requires the 'table' parameter in its constructor") );
+    // Safely mixin values. Note that functions become new object methods,
+    // where this.inherited(arguments) actually works.
+    for( var k in options ){
+      var option = options[ k ];
+      if( typeof( option ) === 'function' ){
+        self.redefineMethod( k, option );
+      } else {
+        self[ k ] = option;
+      }
     }
 
-    // schema needs to be defined
-    if( typeof( options.schema ) === 'undefined' ){
-      throw( new Error("SimpleDbLayer's constructor requires a 'schema' in options") );
-    }
+    // Make sure 'table', 'schema', 'db' exist in the object *somehow*
+    [ 'table', 'schema', 'idProperty', 'db' ].forEach( function( k ){
+      if( ! self[ k ] )
+        throw( new Error("SimpleDbLayer's constructor requires " + k + " defined as attribute") );
+    });
 
-    // idProperty needs to be defined, AND it needs to be defined in the schema
-    // Plus, make sure it's required
-    if( typeof( options.idProperty ) === 'undefined' ){
-      throw( new Error("SimpleDbLayer's constructor requires an 'idProperty' in options") );
-    }
-    if( typeof( options.schema.structure[ options.idProperty ] ) === 'undefined' ){
+    // Check that schema has idProperty defined
+    if( typeof( self.schema.structure[ self.idProperty ] ) === 'undefined' ){
       throw( new Error("idProperty needs to be a field in the schema") );
     }
+
     // idProperty NEEDS to be required and searchable
     options.schema.structure[ options.idProperty ].required = true;
     options.schema.structure[ options.idProperty ].searchable = true;
 
-    // Assigning positionField and positionBase
-    if( typeof( options.positionField ) !== 'undefined' ){
-      self.positionField = options.positionField;
-    }
-    if( typeof( options.positionBase ) !== 'undefined' ){
-      self.positionBase = options.positionBase;
-    }
-
-    // Assigning childrenField
-    if( typeof( options.childrenField ) !== 'undefined' ){
-      self.childrenField = options.childrenField;
-    }
- 
     // Gets its own variables, avoid using the prototype's by accident
     self.childrenTablesHash = {};
     self.lookupChildrenTablesHash = {};
     self.multipleChildrenTablesHash = {};
     self.parentTablesArray = [];
-    
-    // Give a sane default to options.nested
-    if( !Array.isArray( options.nested ) ) options.nested = [];
-
-    // Allow passing of SchemaError as an option. This error will be thrown when
-    // the schema doesn't pass validation, with the `error` hash set
-    if( options.SchemaError ){
-      self.SchemaError = options.SchemaError;
-    }
-
-    // Allow passing of hardLimitOfQuery as an option.
-    if( options.hardLimitOnQueries ){
-      self.hardLimitOnQueries = options.hardLimitOnQueries;
-    }
-
-    // The `db` attribute can be passed to the constructor, or mixed in in advance
-    // Check that the class has 'db' set (prototype, or coming from the constructor)
-    if( typeof( db ) !== 'undefined' ){
-      self.db = db;
-    }
-    if( typeof( self.db ) === 'undefined' ){
-      throw( new Error("SimpleDbLayer's constructor need to have 'db' in their prototype") );
-    }
-
-    // Check that the same table is not managed by two different db layers
-    // Only ONE db layer per DB table
-    //if( self.tableRegistry[ table ] ){
-    //  throw new Error("Cannot instantiate two db objects on the same collection: " + table );
-    //}
-    //self.tableRegistry[ table ] = true;
-
-    // Set the object's attributes: schema, idProperty, nested, table
-    self.schema = options.schema;
-    self.idProperty = options.idProperty;
-    self.nested = options.nested;
-    self.table = table;
-
+   
+    // Make up searchable hash and index group
     self._makeSearchableHashAndIndexGroups();
   },
 
@@ -135,21 +88,17 @@ var SimpleDbLayer = declare( null, {
 
     var self = this;
 
-    self._indexGroups = { __main: { searchable: {} } };
+    self._indexGroups = { __main: {} };
 
     self._searchableHash = {};
    
     // Add entries to _searchableHash and _indexGroups
-    // This will assign either `true`, or `upperCase` (for strings)
     Object.keys( self.schema.structure ).forEach( function( field ) {
       var entry = self.schema.structure[ field ];
-
-      var entryType = entry.type === 'string' ? 'upperCase' : true;
-
-      if( entry.searchable ) self._searchableHash[ field ] = entryType;
-      if( entry.searchable ) self._indexGroups.__main.searchable[ field ] = entryType;
-
+      if( entry.searchable ) self._searchableHash[ field ] = entry;
+      if( entry.searchable ) self._indexGroups.__main[ field ] = entry;
     });
+
   },
 
   _makeTablesHashes: function(){
@@ -166,12 +115,12 @@ var SimpleDbLayer = declare( null, {
       // The parameter childNestedParams.layer is a string. It needs to be
       // converted to a proper table, now that they are all instantiated.
       // The constructor will have a `registry` attribute, with the list of table
-      // already ins
+      // already instantiated
       if( typeof( childNestedParams.layer ) === 'string' ){
         childNestedParams.layer = self.constructor.registry[ childNestedParams.layer ];
       }
 
-      if( !  childNestedParams.layer ){
+      if( !childNestedParams.layer ){
         throw( new Error("Layer requested in nested parameter not found") );
       }
 
@@ -180,21 +129,30 @@ var SimpleDbLayer = declare( null, {
       consolelog("\nScanning", parent.table, ", nested table:", childNestedParams.layer.table, ", nested params:", childNestedParams );
       consolelog("It has a parent. Setting info for", parent.table );
 
-      // Important check that parentField is actually set
-      if( childNestedParams.type == 'lookup' && typeof( childNestedParams.parentField ) === 'undefined' ){
-        throw( new Error( "parentField needs to be set for type lookup" ) );
+      if( childNestedParams.type == 'lookup' ){
+
+        // Important check that localField is actually set
+        if( typeof( childNestedParams.localField ) === 'undefined' ){
+          throw( new Error( "localField needs to be set for type lookup" ) );
+        }
+
+        // Important check that layerField is actually set
+        if( typeof( childNestedParams.layerField ) === 'undefined' ){
+          throw( new Error( "layerField needs to be set for type lookup" ) );
+        }
+
       }
 
       // Work out subName, depending on the type of the child.
       // - For multiple 1:n children, the subName can just be the child's table name
       // - For single lookups, since there can be more children lookups pointing to the same table,
-      //   the key will need to be the parentField name
+      //   the key will need to be the localField name
       // This way, each record will have a list of children with a unique key, which will either
       // lead to a lookup or a multiple relationship.
       var subName;
       switch( childNestedParams.type ){
         case 'multiple': subName = childLayer.table; break;
-        case 'lookup': subName = childNestedParams.parentField; break;
+        case 'lookup': subName = childNestedParams.localField; break;
       }
 
       // Adding this child to the parent
@@ -214,53 +172,55 @@ var SimpleDbLayer = declare( null, {
       consolelog("The child Layer", childLayer.table, "at this point has the following parents: ", childLayer.parentTablesArray );
 
       consolelog("Adding entries to father's _searchableHash to make sure that searchable children fields are searchable");
-      var field;
-      if( childNestedParams.type === 'lookup' ) field = childNestedParams.parentField;
-      if( childNestedParams.type === 'multiple' ) field = childLayer.table;
-      consolelog( 'Considering field ', field, "for table: ", childLayer.table );
+      
+      // Making sure that all keys in join are marked as searchable in children (as well
+      // as being in child's _searchableHash)
+      if( childNestedParams.type === 'multiple'){
+        Object.keys( childNestedParams.join ).forEach( function( key ){
+          consolelog( "Forcing ", key, 'in table', childLayer.table, 'to be searchable' );
+          childLayer._searchableHash[ key ] = childLayer.schema.structure[ key ];
+          childLayer.schema.structure[ key ].searchable = true;
+        });
+      }
+      var layerField = childNestedParams.layerField;
+      consolelog( "Forcing ", layerField, 'in table', childLayer.table, 'to be searchable' );
+      if( childNestedParams.type === 'lookup' ){
+        childLayer._searchableHash[ layerField ] = childLayer.schema.structure[ layerField ];
+        childLayer.schema.structure[ layerField ].searchable = true;
 
+      }
+
+      // Making sure that all searchable fields in child layer are searchable,
+      // in the parent layer, as `parent.childField`
       Object.keys( childLayer.schema.structure ).forEach( function( k ){
 
         var entry = childLayer.schema.structure[ k ];
-        var entryType = entry.type === 'string' ? 'upperCase' : true;
-
-        consolelog( "Field:" , k, ", Entry for that field: -- type: ", entryType );
+        consolelog( "Field:" , k, ", Entry for that field: -- type: ", entry );
         consolelog( entry );
 
         // If entry is searchable, add the field to the _searchableHash
         if( entry.searchable ){
-          self._searchableHash[ field + "." + k ] = entryType;
+          consolelog("Field is searchable! So: ", subName + "." + k, "will be searchable in father table" );
+
+          self._searchableHash[ subName + "." + k ] = entry;
 
           // Add the sub-table to the father's _indexGroups variable
           // For now, _indexGroups is only really useful to MongoDb
-          self._indexGroups[ field ] = self._indexGroups[ field ] || { };
-          self._indexGroups[ field ].searchable = self._indexGroups[ field ].searchable || { };
-          self._indexGroups[ field ].searchable[ k ] = entryType;
+          self._indexGroups[ subName ] = self._indexGroups[ subName ] || { };
+          self._indexGroups[ subName ][ k ] = entry;
 
-          consolelog("Field is searchable! So: ", field + "." + k, "will be searchable in father table" );
         }
-
-        // If entry is sortable, add the field to the _sortableHash
-        //if( entry.sortable ){
-        //  self._sortableHash[ field + "." + k ] = entryType;
-
-        //  consolelog("Field is sortable! So: ", field + "." + k, "will be sortable in father table" );
-        //}
 
       }); 
       
-      consolelog("Making sure that join keys are searchable:" );
+      consolelog("Making sure that join keys are searchable and in child's _searchableHash:" );
 
       // Makes sure that nested tables have ALL of the right indexes
       // so that joins always work
-      if( childNestedParams.type === 'lookup' ) var field = childNestedParams.parentField;
-      else var field = childNestedParams.layer;
+      //if( childNestedParams.type === 'lookup' ) var field = childNestedParams.localField;
+      //else var field = childNestedParams.layer;
 
-      Object.keys( childNestedParams.join ).forEach( function( key ){
-        consolelog( "Forcing ", key, 'in table', childLayer.table, 'to be searchable' );
-        childLayer._searchableHash[ key ] = true;
-      });
-
+      
       consolelog("Parents searchable hash after cure:", parent._searchableHash );
 
       consolelog("Parents _indexGroups after cure:", parent._indexGroups );
