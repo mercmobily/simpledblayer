@@ -1,105 +1,139 @@
-simpledblayer
+Simpledblayer
 =============
 
-SimpleDbLayer is a module that will allow you to connect and query a DB server. Key features:
-
-* It doesn't manage connections. You will have to create a connection to the database and pass it
-* Simple querying. You cannot create complex queries with nested ANDs and ORs -- only one level of AND and OR. You can however check for equality, greater/smaller than, starts with/ends with/contains, etc. as well as sorting and limiting/ranges
-* It has full cursor support
-* It uses a schema to cast/validate fields.
-* It allows 1-level joins in queryes and data fetching. This means that you can load a record and have all of its "lookup" fields, or all of its 1:n children, pre-loaded.
-* It is written with very simple, Object Oriented code using [simpleDeclare](https://github.com/mercmobily/simpleDeclare)
+SimpleDbLayer is a module that allows you to connect and query a DB server. It was created specifically to provide a thin database layer for [JsonRestStores](https://github.com/mercmobily/JsonRestStores).
 
 ## TODO
-
-Todo when everything is stable and non-structural, non-API-changing changes can be made:
 
 * [X] SearchableHash -> change it to the field type, 'string', 'id', etc.
 * [X] Make DB a normal parameter, rather than the constructor's third parameter
 * [X] Run safeMixin on all passed parameters
-* take out "join" for lookup tables, since it can be inferred easily
+* [X] take out "join" for lookup tables, since it can be inferred easily
+* [ ] Rewrite new documentation <--- PLEASE NOTE THAT DOCUMENTATION IS BEING UPDATED
+* [ ] Rewrite tests
+* [ ] Improve range santising function
 
-# Creating a layer
+* [ ] Rewrite documentation for JsonRestStores (the basic module)
+* [ ] Adapt existing software to new API (SimpleDbLayerMixin, Hotplate, BookingDojo)
 
-## Create a DB connection
+* [ ] Write objectsearch function for memory, plug it in for module that mixes in with
+      JsonRestStores and SimpleDbLayer (or figure out why only one or the other)
 
-SimpleDbLayer does NOT handle DB connections for you. It's your responsibility to connect to the database and pass the connection object to it.
+Features:
+
+* Complex queries, with nested AND and OR statements, as well as ranges and sorting
+* Full cursor support
+* Schema to cast/validate fields, using [simpleschema](https://github.com/mercmobily/simpleschema).
+* It allows 1-level joins in queryes and data fetching; joins are defined right in the table definition.
+* The 1-level join is in the table definition because, using MongoDB, children data will be _preloaded_ and automatically updated. This means that you will be able to the record of a person, with all associated addresses, email addresses, phone numbers, etc. _in one single DB operation_.
+* It is written with very simple, Object Oriented code using [simpledeclare](https://github.com/mercmobily/simpleDeclare)
+* Positioning management. You can define the position of a record, which will affect the order they are returned from a query when no sorting is specified (very useful when implementing Drag&Drop in your web application)
+* Semi-automatic index generation. Indexes will be created automatically as much as possible. For example, all fields marked as `searchable` will be defined as an index, as well as indexes for positioning.
+
+Limitations:
+
+* It doesn't manage connections. You will have to create a connection to the database and pass it to it
+* `update` and `delete` statements don't accept `sort` and `range` (they will either affect one record, or all of them).
+* It doesn't implement Models constructors and object types as many other ORMs do (mainly because SimpleDbLayer is _not_ an ORM, but a thin layer around databases).
+
+Once again, all these features (and limitations) are tailored around the fact that SimpleDbLayer is a module that enables [JsonRestStores](https://github.com/mercmobily/JsonRestStores) to have several database layers.
+
+# Database-specific adapters
+
+At the moment, here is the list of database-specific adapters:
+
+* MongoDB -- [simpledblayer-mongo](https://github.com/mercmobily/simpledblayer-mongo). In MongoDB joins are implemented with pre-caching, meaning that 1:n relations are pre-loaded in the record itself. This means very, very fast read operations and very tricky update/delete logic in the layer (cached data needs to be updated/deleted as well).
+* ...more to come (now that the API is stable)
+
+# Note: "SimpleDbLayer is not an ORM"
+
+SimpleDbLayer is exactly what it says: a (thin) database layer. Most of the other database libraries (such as the excellent [Waterline](https://github.com/balderdashy/waterline) work in such a way that they define an "Object type" (call it a model, or constructor function) and create objects of that "type": `var User = Waterline.Collection.extend({ name: { type: string } } ); var user = new User(); user.name = "tony"; user.save();`. This is _not_ how SimpleDbLayer works: you don't define models, custom methods for specific models, etc. SimpleDbLayer is a _thin_ layer around database data. In SimpleDbLayer, each database table is mapped to a _plain database object_:
+
+
+    // ...Include module, create database connection, etc.
+    var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
+
+      var people = new DbLayer( {
+
+        table: 'peopleDbTable',
+
+        schema: new SimpleSchema({
+          id:      { type: 'id' },
+          name:    { type: 'string', required: true },
+          surname: { type: 'string', searchable: true },
+          age:     { type: 'number', searchable: true },
+        }),
+
+        idProperty: 'id',
+      });
+
+      people.insert( {id: '1', name: 'Tony', surname: 'Mobily', age: '39' });
+
+
+The plain object `people` will have several methods (`people.update()`, `people.select()`, etc.) which will manipulate the table `peopleDbTable`. There are no types defined, and there are no "models" for that matter.
+
+# Create a DB connection
+
+SimpleDbLayer does not handle DB connections for you. It's your responsibility to connect to the database and pass the connection object to it.
 For MongoDB, you can use Mongo's connect call:
 
-    var mongo = require('mongo');
     mongo.MongoClient.connect( 'mongodb://localhost/hotplate', {}, function( err, db ){
      // db exists here
+
     }; 
 
-Or for Tingodb just create the DB object:
 
-    var tingo = require("tingodb")({});
-    var db = new tingo.Db('/tmp/someDB', {} );
-    // db exists here
+# Make up the DB Layer class: mixins
 
-## Make up the DB Layer class
+In order to use this library, you will need to _mixin_ the basic SimpleDbLayer class and a DB-specific mixin. If you are not used to mixins, don't be scared: it's simpler than it sounds. Im simple words, requiring `simpledblayer` will return a constructor that doesn't have any of the DB-specific functions in its prototype. If you try to create an object using the `simpledblayer` and then run `object.select()`, `object.insert()`, etc., you will end up with an error being thrown. By _mixing in_ the constructor returned by `simpledblayer-mongo`, however, you end up with a constructor that creates fully functional objects.
 
-In order to use this class, you will need to _mixin_ the basic SimpleDbLayer class and a DB-specific mixin. If you are not used to mixins, don't be scared: it's simpler than it sounds.
-
-Here is how you make up the class:
-
-    var mongo = require('mongodb');
-    var declare = require('simpledeclare');
     var SimpleDbLayer = require('simpledblayer'); // This is the main class
     var SimpleSchema = require('simpleschema'); // This will be used to define the schema
     var SimpleDbLayerMongo = require('simpledblayer-mongo'); // This is the layer-specific mixin
 
-    // Connect to the database
+    var mongo = require('mongodb');
+
+        // Connect to the database
     mongo.MongoClient.connect('mongodb://localhost/someDB', {}, function( err, db ){
 
-      // Make up the database class
+      // DbLayer will be SimpleDbLayer "enhanced" with DB-Specific SimpleDbLayerMongo
       var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
 
-      // ...your program goes here
+      // At this point, you can run `var people = new DbLayer( { ... } );
+
+      // Documentation's code will live here
 
     });
 
-Or, you could use TingoDB:
+**Please note:** from now on, I will assume that any code referenced in this guide will be surrounded by the code above.
 
-    var tingo = require("tingodb")({});
+# Create your layer object
 
-    var declare = require('simpledeclare');
-    var SimpleDbLayer = require('simpledblayer'); // This is the main class
-    var SimpleSchema = require('simpleschema'); // This will be used to define the schema
-    var SimpleDbLayerTingo = require('simpledblayer-tingo'); // This is the layer-specific mixin
+Once you have your DbLayer class, it's up to you to create objects which will then modify specific database tables:
 
-    var db = new tingo.Db('/tmp/someDB', {} );
+      var people = new DbLayer( {
 
-    // Make up the database class
-    var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerTingo ], { db: db } );
+        table: 'people',
 
-    // ...your program goes here
+        schema: new SimpleSchema({
+          id:      { type: 'id' },
+          name:    { type: 'string', required: true },
+          surname: { type: 'string', searchable: true },
+          age:     { type: 'number', searchable: true },
+        }),
 
-There is no difference in functionality between the two layers.
+        idProperty: 'id',
+      });
 
-## Create your layer object
+`people` is an object tied to the collecton `people` in the MongoDb database..
 
-Once you have your DbLayer class, it's up to you to create objects which will then modify specific database tables/collections:
+The second parameter in the constructor is a sparameter object, which in this case include 1) The schema definition 2) the `idProperty`, which needs to be set and refer to an existing field.
 
-    var people = new DbLayer( 'people', {
+Simpleschema is an constructor based on [SimpleSchema](https://github.com/mercmobily/SimpleSchema), which provides a way to define extensible schemas with a very simple API. In this case, the `name` field is required whereas `surname` and `age` are not required but are searchable.
 
-      schema: new SimpleSchema({
-        id: { type: 'id' },
-        name: { type: 'string', required: true },
-        surname: { type: 'string', searchable: true },
-        age: { type: 'number', searchable: true },
-      }),
+Since the `id` field was set as `isProperty`, it will automatically be set as both `required` and `searchable`.
 
-      idProperty: 'id',
-
-    } );
-
-Note how `people` is an object which will be tied to the table/collection `people`.
-The second parameter in the constructor is a set of parameters, which in this case include 1) The schema definition 2) the `idProperty`, which needs to be set and refer to an existing field.
-
-Simpleschema is an constrctor based on [SimpleSchema](https://github.com/mercmobily/SimpleSchema), which provides a way to define extensible schemas with a very simple API. In this case, the `name` field is required whereas `surname` and `age` are not required but are searchable.
-
-The `id` field, since it was set as `isProperty`, is forced as `required` and `searchable`.
+** DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
 
 ## Create your layer object with a specific db connection
 
@@ -271,7 +305,7 @@ For sorting, -1 means from smaller to bigger and 1 means from bigger to smaller.
 
 # Automatic loading of children (joins)
 
-SimpleDbLayer does _not_ support complex joins. In fact, at the beginning it didn't support joins at all. However, after real world usage of the library, it became apparent that some level of joins was important to easy application development.
+SimpleDbLayer does _not_ support complex joins. However, you can define how data will be preloaded whenever you fetch a record. Note that, for speed, databases like MongoDb will actually pre-cache results for speed.
 
 ## Define nested layers
 
@@ -313,15 +347,12 @@ You can now define a layer as "child" of another one:
           type: 'lookup',
           layer: 'people',          
           layerField: 'id',
-          localField: 'personId' 
-       
-          join: { id: 'personId' },
-         
+          localField: 'personId'          
         }
       ],
     } );
 
-    SimpleDbLayer.initLayers(); // <--- IMPORTANT!!!
+    SimpleDbLayer.initLayers(); // <--- IMPORTANT!
 
 
 ***It's absolutely crucial that you run `SimpleDbLayer.initLayers()` before running queries if you have nested layers.***
@@ -549,7 +580,6 @@ This is how you would make the `emails` layer able to handle positioning:
 
 The attribute `positionBase` basically decides the domain in which the reordering will happen: only records where `personId` matches the moving record's `personId` will be affected by repositioning.
 
-
 # Indexing
 
 You can create and delete indexes using SimpleDbLayer.
@@ -640,30 +670,4 @@ The function `DbLayer.getAllLayers()` will return _all_ layers in the registry:
     // allLayers is now { emails: ..., people: ... }
 
 As you can see, allLayers is a hash object where each key is the layer's name.
-
-# Why another DB abstraction module?
-
-This module was specificaly created to allow the [JsonRestStores](https://github.com/mercmobily/JsonRestStores) module to interact with several database engines.
-
-Unlike other layers/ORMs, it only does what's normally required when dealing with web application data. If you are after a full-blown database abstraction module or ORM, you should look somewhere else.
-
-# Changes
-
-Here I will list the major changes I make to the library
-
-## Changes from "0.3.12", "0.3.13"
-
-* BREAKING idProperty is now mandatory, and it's forced in the schema as searchable and required
-* BREAKING Schema needs to be defined, fields have searchable (boolean) and required (boolean)
-* positionField and positionBase are now here
-* insert and update have the skipValidation option
-* constructor can be passed the validationError object, which will be created (explain how)
-* There is a global layer registry, accessible as SimpleDbLayer.getLayer(), SimpleDbLayer.getAllLayers()
-* [index] New index functions makeAllIndexes(), dropAllIndexes(), makeIndex()
-* [index] Global index funcs SimpleDbLayer.makeAllIndexesAllLayers() and SimpleDbLayer.dropAllIndexesAllLayers()
-* [index] A field can be defined as indexPrefix ( will be used as prefix), and permute (will be permuted among others defined with permute).
-* [nested] It is now possible to define nested tables, for 1:n relationships and 1:1 (lookup) relationships
-* [nested] { children: true } option in select()
-* [nested] If using nested layers, SimpleDbLayer.initLayers() needs to be called before any db operation
-
 
