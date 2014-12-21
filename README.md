@@ -36,7 +36,7 @@ Limitations:
 * `update` and `delete` statements don't accept `sort` and `range` (they will either affect one record, or all of them).
 * It doesn't implement Models constructors and object types as many other ORMs do (mainly because SimpleDbLayer is _not_ an ORM, but a thin layer around databases).
 
-Once again, all these features (and limitations) are tailored around the fact that SimpleDbLayer is a module that enables [JsonRestStores](https://github.com/mercmobily/JsonRestStores) to have several database layers.
+Once again, all these features (and limitations) are tailored around the fact that SimpleDbLayer is a module that enables [JsonRestStores](https://github.com/mercmobily/JsonRestStores) to have several (thin) database layers.
 
 # Database-specific adapters
 
@@ -83,9 +83,9 @@ For MongoDB, you can use Mongo's connect call:
     }; 
 
 
-# Make up the DB Layer class: mixins
+# Make up your DB Layer class: mixins
 
-In order to use this library, you will need to _mixin_ the basic SimpleDbLayer class and a DB-specific mixin. If you are not used to mixins, don't be scared: it's simpler than it sounds. Im simple words, requiring `simpledblayer` will return a constructor that doesn't have any of the DB-specific functions in its prototype. If you try to create an object using the `simpledblayer` and then run `object.select()`, `object.insert()`, etc., you will end up with an error being thrown. By _mixing in_ the constructor returned by `simpledblayer-mongo`, however, you end up with a constructor that creates fully functional objects.
+In order to use this library, you will need to _mixin_ the basic SimpleDbLayer class and a DB-specific mixin. If you are not used to mixins, don't be scared: it's simpler than it sounds. Im simple words, requiring `simpledblayer` will return a constructor that doesn't have any of the DB-specific functions in its prototype (not in a meaningful way -- they are just stubs that throws an error). If you try to create an object using the `simpledblayer` and then run `object.select()`, `object.insert()`, etc., you will end up with an error being thrown. By _mixing in_ the constructor returned by `simpledblayer-mongo`, however, you end up with a constructor that creates fully functional objects.
 
     var SimpleDbLayer = require('simpledblayer'); // This is the main class
     var SimpleSchema = require('simpleschema'); // This will be used to define the schema
@@ -106,6 +106,12 @@ In order to use this library, you will need to _mixin_ the basic SimpleDbLayer c
     });
 
 **Please note:** from now on, I will assume that any code referenced in this guide will be surrounded by the code above.
+
+THe critical line is this:
+
+      var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
+
+Here you are creating a constructor function called `DbLayer`, whose prototype will be the merge of `SimpleDbLayer` (the basic functionalities), `SimpleDbLayerMongo` (the db-specific functions) and a plain object `{db: db }` (used to set the `db` attribute to the database connection)..
 
 # Create your layer object
 
@@ -133,30 +139,57 @@ Simpleschema is an constructor based on [SimpleSchema](https://github.com/mercmo
 
 Since the `id` field was set as `isProperty`, it will automatically be set as both `required` and `searchable`.
 
-** DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
+## Note on prototype parameters and the constructor parameter
 
-## Create your layer object with a specific db connection
+When you actually create the object with `new`, you pass an object to the constructor: `var people = new DbLayer( { /*...this is an object with the constructor's parameters...*/ });`. 
 
-You can pass the connection variable `db` as the third parameter of the DbLayer constructor if you like:
+Normally, you would define at least `table`, `schema` and `idProperty` (the required attributes every object needs to work).
 
-    var logEntries = new DbLayer( 'logger', { ...layer parameters... }, someOtherDb );
+Please note that you can define these attribute either in the object's prototype, or in the constructor's parameter. Every property in the constructor's parameter will be added to the created object (overriding the prototype's value).
 
-In this case, logEntries will be tied to the table `logger`, but queries will be directed to `someOtherDb` rather than `db`.
+For example, if all of your tables have `idProperty` set to `id`, you can define a layer like so:
 
-## Setting a hard limit on queries
+      var DbLayerWithId = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db, idProperty: 'id' } );
+
+Any object created with this constructor will automatically have the attribute `id` set (in the prototype):
+
+      var people = new DbLayerWithId( {
+        table: 'people',
+        schema: ...
+      });
+
+      // people.idProperty is already 'id' (from the prototype)
+
+ You can always override the prototype-provided value with something else:
+
+     var rocks = new DbLayerWithId( {
+        idProperty: 'weirdId',
+        table: 'rocks',
+        schema: ...
+      });
+      // rocks.idProperty (an object's own attribute) is 'weirdId',  
+
+This means that you can create a constructor with the most common attributes, and only pass the absolute minimum to the constructor.
+
+# Important object attributes
+
+Some attributes are used by the objects to define how the object will work.
+They are:
+
+## `hardLimitOnQueries` -- Setting a hard limit on queries. Default: `0`
 
 Cursor-less queries on large data sets will likely chew up huge amounts of memory. This is why you can set a hard limit on queries:
 
       var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db, hardLimitOnQueries: 10 } );
 
-This will imply that each non-cursor query will only ever return 10 items max. You can also set this limit on specific objects by passing hardLimitOnQueries as a parameter:
+This will imply that each _non-cursor_ query will only ever return 10 items max. You can also set this limit on specific objects by passing hardLimitOnQueries as a constructor parameter:
 
     var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
-    var people = new DbLayer( 'people', {  ...layer parameters..., hardLimitOnQueries: 10 } );
+    var people = new DbLayer( {  /* ...layer parameters..., */ hardLimitOnQueries: 10 } );
 
 Note that hardLimtOnQueries only ever applies to non-cursor queries.
 
-## Validation errors
+## `SchemaError` -- Constructor function used to throw schema validation errors. Default: `Error`
 
 The `insert` and `update` operations will trigger validation against the schema. If validation fails, the callback is called with an error. The error object is created by SimpleDbLayer like this:
 
@@ -169,20 +202,39 @@ The variable `errorsArray` is an array of objects, where each object has `field`
 
 You can set the constructor used to create the error objects by passing a `SchemaError` parameter when you define the layer:
 
-    var people = new DbLayer( 'people', {
+    var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db, SchemaError: SomeErrorConstructor } );
 
-      schema: new SimpleSchema({
-        // ... your schema here
-      }),
+As always, you can also define a constructor when creating the object:
 
-      idProperty: 'id',
+    var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
+    var people = new DbLayer( { /* ...layer parameters..., */ SchemaError: SomeErrorConstructor } );
 
-      SchemaError: YourPersonalisedErrorConstructor
-    } );
 
-You can also define a `SchemaError` that will be used by all instances:
+# Full list of options for SimpleDbLayer
 
-    var people = new DbLayer( 'people', {  ...layer parameters..., SchemaError: SomeOtherSchemaError } );
+Here is a full list of options that affect the behaviour of SimpleDbLayer objects. Please keep in mind that all of them can me defined either in the constructor's prototype, or as attribute of the constructor's parameter oject.
+
+
+## Basic fields
+
+* `table`. Required. No default. The table name in the underlying database.
+* `schema`. Required. No default. The schema to be used.
+* `idProperty`. Required. No default. The property representing the record's ID.
+* `hardLimitOnQueries`. Defaults to `0` (no limit). The maximum number of objects returned by non-cursor queries.
+* `SchemaError`. Defaults to `Error`. The constructor for `Error` objects.
+
+## Advanced fields
+
+These attributes are explained later in the documentation.
+
+* `positionField`. Defaults to `null` (no positioning). The field used by the database engine to keep track of positioning.
+* `positionBase`. Defaults to `[]`. The list of key fields which will `group` positioning
+* `childrenField`. Defaults to `_children`. The attribute under which the `nested` children will be loaded into.
+* `nested`. Defaults to `[]`. The 'children' tables for in-table joints.
+  
+** DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
+
+
 
 # Running queries
 
