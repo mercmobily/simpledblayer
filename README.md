@@ -47,7 +47,15 @@ At the moment, here is the list of database-specific adapters:
 
 # Note: "SimpleDbLayer is not an ORM"
 
-SimpleDbLayer is exactly what it says: a (thin) database layer. Most of the other database libraries (such as the excellent [Waterline](https://github.com/balderdashy/waterline) work in such a way that they define an "Object type" (call it a model, or constructor function) and create objects of that "type": `var User = Waterline.Collection.extend({ name: { type: string } } ); var user = new User(); user.name = "tony"; user.save();`. This is _not_ how SimpleDbLayer works: you don't define models, custom methods for specific models, etc. SimpleDbLayer is a _thin_ layer around database data. In SimpleDbLayer, each database table is mapped to a _plain database object_:
+SimpleDbLayer is exactly what it says: a (thin) database layer. Most of the other database libraries (such as the excellent [Waterline](https://github.com/balderdashy/waterline) work in such a way that they define an "Object type" (call it a model, or constructor function) and create objects of that "type": 
+
+    // This is NOT how SimpleDbLayer works
+    var User = Waterline.Collection.extend({ name: { type: string } } );
+    var user = new User();
+    user.name = "tony";
+    user.save();`.
+
+This is _not_ how SimpleDbLayer works: you don't define models, custom methods for specific models, etc. SimpleDbLayer is a _thin_ layer around database data. In SimpleDbLayer, each database table is mapped to a _plain database object_:
 
 
     // ...Include module, create database connection, etc.
@@ -70,7 +78,7 @@ SimpleDbLayer is exactly what it says: a (thin) database layer. Most of the othe
       people.insert( {id: '1', name: 'Tony', surname: 'Mobily', age: '39' });
 
 
-The plain object `people` will have several methods (`people.update()`, `people.select()`, etc.) which will manipulate the table `peopleDbTable`. There are no types defined, and there are no "models" for that matter.
+The plain object `people` will have several methods (`people.update()`, `people.select()`, etc.) which will manipulate the table `peopleDbTable`. There are no types defined, and there are no "models" for that matter. Each created object will manipulate a specific table on the database, and __application-wide, there should only be one SimpleDbLayer variable created for each database table_.
 
 # Create a DB connection
 
@@ -79,7 +87,6 @@ For MongoDB, you can use Mongo's connect call:
 
     mongo.MongoClient.connect( 'mongodb://localhost/hotplate', {}, function( err, db ){
      // db exists here
-
     }; 
 
 
@@ -133,7 +140,7 @@ Once you have your DbLayer class, it's up to you to create objects which will th
 
 `people` is an object tied to the collecton `people` in the MongoDb database..
 
-The second parameter in the constructor is a sparameter object, which in this case include 1) The schema definition 2) the `idProperty`, which needs to be set and refer to an existing field.
+The second parameter in the constructor (an object defining `table`, `schema` and `idProperty`) is a parameter object, which in this case include 1) The table name 2) The schema definition 3) The `idProperty`, which needs to be set and refer to an existing field.
 
 Simpleschema is an constructor based on [SimpleSchema](https://github.com/mercmobily/SimpleSchema), which provides a way to define extensible schemas with a very simple API. In this case, the `name` field is required whereas `surname` and `age` are not required but are searchable.
 
@@ -204,16 +211,14 @@ You can set the constructor used to create the error objects by passing a `Schem
 
     var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db, SchemaError: SomeErrorConstructor } );
 
-As always, you can also define a constructor when creating the object:
+As always, you can also define a the SchemaError constructor when creating the object with `new`:
 
     var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
     var people = new DbLayer( { /* ...layer parameters..., */ SchemaError: SomeErrorConstructor } );
 
-
 # Full list of options for SimpleDbLayer
 
 Here is a full list of options that affect the behaviour of SimpleDbLayer objects. Please keep in mind that all of them can me defined either in the constructor's prototype, or as attribute of the constructor's parameter oject.
-
 
 ## Basic fields
 
@@ -235,7 +240,6 @@ These attributes are explained later in the documentation.
 ** DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
 
 
-
 # Running queries
 
 ## Querying: insert
@@ -246,20 +250,24 @@ To insert data into your table:
 
 The second parameter is optional. If you pass it:
 
-* If `returnRecord` is true, then the callback will be called with `record` representing the record just created.
-* If `skipValidation` is true, then the validation of the data against the schema will be skipped
+* If `returnRecord` is `true`, then the callback will be called with `record` representing the record just created. Default is `false`.
+* If `skipValidation` is `true`, then the validation of the data against the schema will be skipped. Default is `false`.
 
 ## Querying: update
 
 This is a simple update:
 
-    people.update( { conditions: { and: [ name: { type: 'startsWith', value: 'D' }  ] } }, { name: 'Changed' }, { deleteUnsetFields: true, multi: true }, function( err, num ){
+    people.update(
+      { conditions: { and: [ name: { type: 'startsWith', value: 'D' }  ] } },
+      { name: 'Changed' },
+      { deleteUnsetFields: true, multi: true },
+      function( err, num ){
 
-The second parameter is optional. If you pass it:
+The third parameter, here set as `{ deleteUnsetFields: true, multi: true }`, is optional. If you pass it:
 
 * If `multi` is set to `true`, all records matching the search will be updated. Otherwise, only one record will be updated.
 * If `deleteUnsetFields` is set to `true`, then any field that is not defined in the update object will be set as empty in the database. Basically, it's a "full record update" regardless of what was passed. Validation will fail if a field is required by the schema and it's not set while this option is `true`.
-* If `skipValidation` is true, then the validation of the data against the schema will be skipped
+* If `skipValidation` is true, then the schema validation of the data against the schema will be skipped. Casting will still happen.
 
 ## Querying: delete
 
