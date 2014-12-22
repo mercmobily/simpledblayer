@@ -50,7 +50,7 @@ At the moment, here is the list of database-specific adapters:
 SimpleDbLayer is exactly what it says: a (thin) database layer. Most of the other database libraries (such as the excellent [Waterline](https://github.com/balderdashy/waterline) work in such a way that they define an "Object type" (call it a model, or constructor function) and create objects of that "type": 
 
     // This is NOT how SimpleDbLayer works
-    var User = Waterline.Collection.extend({ name: { type: string } } );
+    var User = Waterline.Collection.extend({ name: { type: 'string' } } );
     var user = new User();
     user.name = "tony";
     user.save();`.
@@ -345,59 +345,95 @@ The `cursor` object has the methods `next()` and `rewind()`. `next()` will call 
 
 ## Filtering
 
-**DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
+The first parameter in select, which up to this point in the documentation was was left as an empty object, is an object with the following parameters:
 
+* `conditions`. It's an object including the attribute `name` (a string representing the name of the conditional operation to perform) and `args` (an array containing the parameters to the operation). For example, `{ name: 'startsWith', args: [ 'surname', 'mob' ] },` will filter all record where the field `surname` starts with `mob`.
+* `ranges`. It's an object that can have the attributes `from`, `to` and `limit` set. All attributes are optional. For example `{ limit: 10 }`.
+* `sort`. It's an object where each key represents the field the sort will apply to. For each key, value can be `-1` (bigger to smaller)  or `1` (smaller to bigger).
 
-This is what the search filter can look like:
+All parameters are optional.
 
-    var searchFilter = { 
-  
+Note that while the parameter passed to `select()` includes `conditions` `ranges`, `sort`, the first parameter passed to `update()` and `delete()` is only passed the `conditions` object. This means that update and delete queries will either affect _all_ records (`multi` is `true`), or _one_ record (`multi` is `false` or not passed).
+
+A possible filtering parameter could be:
+
+    var searchFilter = {   
       ranges: {
-        from: 1,
-        to: 7
-        limit: 7
+        from: 3,
+        to: 10
       },
-  
-      conditions: {
-  
-        and: [
-          { 
-            field: 'name',
-            type: 'startsWith',
-            value: 'To'
-          },
-        ],
-  
-        or: [
-  
-          {
-            field: 'age',
-            type: 'lt',
-            value: 12 
-          },
-          {
-            field: 'age',
-            type: 'gt',
-            value: 65
-          },
-
-        ],
-      },
-  
       sort: {
         name: -1,
         age: 1
       }
-  
-    };
+      conditions: {
+        name: 'and',
+        args: [
+          {
+            name: 'startsWith',
+            args: [ 'name', 'to' ]
+          },
+          {
+            name: 'gt',
+            args: [ 'age', 30 ]
+          },
+        ]
+      }
+    }
 
-Conditions are grouped into `and` and `or` ones. The db query will be the list of `and` conditions _linked with `and`_ to the list of `or` conditions. See it as `A and B and C and (D or E of F )` where `A`, `B` and `C` are the `and` conditions, and `D`, `E`, `F` are the `or` conditions.
+    people.select( searchFilter, function( err, cursor, total, grandTotal ){
+      // ...
+    });
 
-The possible comparison types are: `is` `eq` `lt` `lte` `gt` `gte` `startWith` `startsWith` `contain` `contains` `endsWith` `endWith`.
 
-Ranges can have `from`, `to` and `limit` set. If `fields` are missing, the others are automatically worked out.
-For sorting, -1 means from smaller to bigger and 1 means from bigger to smaller.
+### The `conditions` object
 
+The conditions object can have the following conditional operators (in `name`):
+
+* `and` -- all conditions in `args` need to be true
+* `or` -- at least one condition in `arts` needs to be true
+
+And the following logical operators (where the value of the field called `args[0]` will need to match `args[1]`):
+
+* `lt` -- less than
+* `lte` -- less or equal than
+* `gt` -- greater than
+* `gte` -- greater or equal than
+* `eq` -- equal to
+* `contains` -- string contains
+* `startsWith` -- string starts with
+* `endsWith` -- string ends with
+
+An example could be:
+
+    conditions: {
+      name: 'and',
+      args: [
+        {
+          name: 'startsWith',
+          args: [ 'name', 'to' ]
+        },
+
+        { 
+          name: 'or',
+          args: [
+            {
+              name: 'gt',
+              args: [ 'age', 30 ]
+            },            
+            {
+              name: 'lt',
+              args: [ 'age', 10 ]
+            },
+          ]
+        }
+      ]
+    }
+
+    Which means `name startsWith 'to' AND ( age > 30 OR age < 10 )`.
+
+
+**DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
 
 
 # Automatic loading of children (joins)
