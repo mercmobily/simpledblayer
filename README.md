@@ -237,65 +237,97 @@ These attributes are explained later in the documentation.
 * `childrenField`. Defaults to `_children`. The attribute under which the `nested` children will be loaded into.
 * `nested`. Defaults to `[]`. The 'children' tables for in-table joints.
   
-** DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
-
-
 # Running queries
 
-## Querying: insert
+## Querying: `insert()`
 
 To insert data into your table:
 
-    people.insert( { id: 1, name: 'Tony', surname: 'Mobily', age: 37 }, { returnRecord: true }, function( err, record ){
+    people.insert( { 
+      id: 1,
+      name: 'Tony',
+      surname: 'Mobily',
+      age: 37 },
+      { returnRecord: true }, function( err, record ){
+
 
 The second parameter is optional. If you pass it:
 
 * If `returnRecord` is `true`, then the callback will be called with `record` representing the record just created. Default is `false`.
 * If `skipValidation` is `true`, then the validation of the data against the schema will be skipped. Default is `false`.
 
-## Querying: update
+# Querying: `update()`
 
 This is a simple update:
 
     people.update(
-      { conditions: { and: [ name: { type: 'startsWith', value: 'D' }  ] } },
-      { name: 'Changed' },
-      { deleteUnsetFields: true, multi: true },
+      { name: 'startsWith', args: [ 'surname', 'mob' ] },
+      { surname: 'Tobily' },
+      { deleteUnsetFields: false, multi: true },
       function( err, num ){
 
-The third parameter, here set as `{ deleteUnsetFields: true, multi: true }`, is optional. If you pass it:
+The third parameter, here set as `{ deleteUnsetFields: false, multi: true }`, is optional. If you pass it:
 
-* If `multi` is set to `true`, all records matching the search will be updated. Otherwise, only one record will be updated.
-* If `deleteUnsetFields` is set to `true`, then any field that is not defined in the update object will be set as empty in the database. Basically, it's a "full record update" regardless of what was passed. Validation will fail if a field is required by the schema and it's not set while this option is `true`.
-* If `skipValidation` is true, then the schema validation of the data against the schema will be skipped. Casting will still happen.
+* `multi`. If set to `true`, all records matching the search will be updated. Otherwise, only one record will be updated. Default: `false`.
+* `deleteUnsetFields`. If set to `true`, then any field that is not defined in the update object will be set as empty in the database. Basically, it's a "full record update" regardless of what was passed. Validation will fail if a field is required by the schema and it's not set while this option is `true`. Default: `false`.
+* `skipValidation`. If set to `true`, then the schema validation of the data against the schema will be skipped. Casting will still happen. Default: `false`.
 
-## Querying: delete
+Please note how the filter is an object that defines how data will be filtered. Check the `select` section to see how the filter works.
 
-To delete, just use the `delete()` method:
+# Querying: `delete()`
 
-    people.delete( { conditions: { and: [ { field: 'age', type: 'lt', value: 30 }, { field: 'name', type: 'eq', value: 'Chiara' } ] } }, { multi: true } ,  function( err, howMany ){
+This is a simple delete:
 
-The second parameter is optional. If you pass it:
+    people.delete(
+      { name: 'gt', args: [ 'age', 28 ] },
+      { multi: true },
+      function( err, howMany ){
 
-* If `multi` is set to `true`, all records matching the search will be deleted. Otherwise, only one record will be deleted.
+The second parameter, here set as `{ multi: true }`, is optional. If you pass it:
 
-## Querying: select
+* If `multi` is set to `true`, all records matching the search will be deleted. Otherwise, only one record will be deleted. Default: `false`.
+
+# Querying: `select()`
+
+SimpleDbLayer supports both normal and cursor-based queries, depending on the `useCursor` parameter.
+
+## Normal queries
 
 For normal queries:
 
-    people.select( {}, { useCursor: false , delete: false }, function( err, data, total, grandTotal ){
+    people.select(
+      {},
+      { useCursor: false , delete: false, skipHardLimitOnQueries: false },
+      function( err, data, total, grandTotal ){
 
-In normal queries, you can also pass the `skipHardLimitOnQueries` flag. However, remember that if you have a large data set, non-cursor queries will attempt to place the whole thing in memory and will probably kill your server:
+The first parameter is an object representing the query (more about this later).
+The second parameter is optional. If you pass it:
 
-    people.select( {}, { useCursor: false , delete: false, skipHardLimitOnQueries: true }, function( err, data, total, grandTotal ){
+* `useCursor`. If set to `true`, the function will call the call the callback with a cursor rahter than the data. Default: `false`.
+* `delete`. If set to `true`, SimpleDbLayer will _delete_ any fetched record. For normal queries, it will delete all records _before_ calling your callback.
+* `skipHardLimitOnQueries`. If set to `true`, SimpleDbLayer will ignore the `hardLimitOnQuery` attribute and will return _all_ fetched data. flag. Remember that if you have a very large data set and do not impose any range limits, non-cursor queries will attempt to place the whole thing in memory and will probably kill your server. Default: `false.`.
 
-For cursor queries (for which `skipHardLimitOnQueries` is implied since it would be pointless):
+The callback is called with parameter `data` (the returned records), `total` (the number of records returned) and `grandTotal` (the _total_ number of records that satisfy the query without taking into consideration the required ranges).
 
-    people.select( {}, { useCursor: true , delete: false }, function( err, cursor, total, grandTotal ){
+## Cursor queries
 
-Here, `total` is the number of records returned, and `grandTotal` is the _total_ number of records that satisfy the query without taking into consideration the required ranges.
+For cursor queries:
 
-Normal queries will just return the data as an array of values. Cursor queries will return an object with the methods next(), rewind() and close(). For example:
+    people.select(
+      {},
+      { useCursor: true , delete: false },
+      function( err, cursor, total, grandTotal ){
+
+The second parameter is optional. If you pass it:
+
+* `useCursor`. If set to `true`, the function will call the call the callback with a cursor rather than the data. Default: `false`.
+* `delete`. If set to `true`, SimpleDbLayer will _delete_ any fetched record. For cursor queries, it will delete records as they are fetched with `cursor.next()`. Default: `false`.
+
+Note that for cursor queries `skipHardLimitOnQueries` will be ignored.
+
+The callback is called with parameter `cursor` (the returned cursor), `total` (the number of records returned) and `grandTotal` (the _total_ number of records that satisfy the query without taking into consideration the required ranges).
+
+The `cursor` object has the methods `next()` and `rewind()`. `next()` will call the passed callback with the next available record, or `null` for the last fetched record. `rewind()` will bring the cursor back to the beginning of the returned dataset.
 
     people.select( {}, { useCursor: true , delete: false }, function( err, cursor ){
     if( err ){
@@ -310,6 +342,11 @@ Normal queries will just return the data as an array of values. Cursor queries w
         } 
       }
     }
+
+## Filtering
+
+**DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
+
 
 This is what the search filter can look like:
 
@@ -358,10 +395,10 @@ Conditions are grouped into `and` and `or` ones. The db query will be the list o
 
 The possible comparison types are: `is` `eq` `lt` `lte` `gt` `gte` `startWith` `startsWith` `contain` `contains` `endsWith` `endWith`.
 
-If the `delete` field is on (it's off by default), the driver will _delete_ any fetched record. For straight selects, it will delete all records _before_ calling your callback. For cursor-driven selects, it will delete records as they are fetched with `cursor.next()` 
-
 Ranges can have `from`, `to` and `limit` set. If `fields` are missing, the others are automatically worked out.
 For sorting, -1 means from smaller to bigger and 1 means from bigger to smaller.
+
+
 
 # Automatic loading of children (joins)
 
