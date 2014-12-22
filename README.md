@@ -430,10 +430,10 @@ An example could be:
       ]
     }
 
-    Which means `name startsWith 'to' AND ( age > 30 OR age < 10 )`.
+Which means `name startsWith 'to' AND ( age > 30 OR age < 10 )`.
 
 
-**DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
+# **DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
 
 
 # Automatic loading of children (joins)
