@@ -78,7 +78,7 @@ This is _not_ how SimpleDbLayer works: you don't define models, custom methods f
       people.insert( {id: '1', name: 'Tony', surname: 'Mobily', age: '39' });
 
 
-The plain object `people` will have several methods (`people.update()`, `people.select()`, etc.) which will manipulate the table `people`. There are no types defined, and there are no "models" for that matter. Each created object will manipulate a specific table on the database, and __application-wide, there must only be one SimpleDbLayer variable created for each database table_.
+The plain object `people` will have several methods (`people.update()`, `people.select()`, etc.) which will manipulate the table `people`. There are no types defined, and there are no "models" for that matter. Each created object will manipulate a specific table on the database, and _application-wide, there **must** only be one SimpleDbLayer variable created for each database table_.
 
 When you create `people`, SimpleDbLayer keeps track of the layer created and creates an entry in its internal registry, based on the database table's name. _This means that you can only create one layer variable per table_. **Attempting to create two different layer variables for the same table will result in an error.**
 
