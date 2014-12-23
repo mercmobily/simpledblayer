@@ -32,8 +32,8 @@ Features:
 
 Limitations:
 
-* It doesn't manage connections. You will have to create a connection to the database and pass it to it
-* `update` and `delete` statements don't accept `sort` and `range` (they will either affect one record, or all of them).
+* It doesn't manage connections. You will have to create a connection to the database and pass it to it. This is due to the module's philosophy of getting in the way as little as possible.
+* `update` and `delete` statements don't accept `sort` and `range` (they will either affect one record, or all of them). This is mainly to make sure that pre-caching of children (join) tables is workable.
 * It doesn't implement Models constructors and object types as many other ORMs do (mainly because SimpleDbLayer is _not_ an ORM, but a thin layer around databases).
 
 Once again, all these features (and limitations) are tailored around the fact that SimpleDbLayer is a module that enables [JsonRestStores](https://github.com/mercmobily/JsonRestStores) to have several (thin) database layers.
@@ -63,7 +63,7 @@ This is _not_ how SimpleDbLayer works: you don't define models, custom methods f
 
       var people = new DbLayer( {
 
-        table: 'peopleDbTable',
+        table: 'people',
 
         schema: new SimpleSchema({
           id:      { type: 'id' },
@@ -78,7 +78,9 @@ This is _not_ how SimpleDbLayer works: you don't define models, custom methods f
       people.insert( {id: '1', name: 'Tony', surname: 'Mobily', age: '39' });
 
 
-The plain object `people` will have several methods (`people.update()`, `people.select()`, etc.) which will manipulate the table `peopleDbTable`. There are no types defined, and there are no "models" for that matter. Each created object will manipulate a specific table on the database, and __application-wide, there should only be one SimpleDbLayer variable created for each database table_.
+The plain object `people` will have several methods (`people.update()`, `people.select()`, etc.) which will manipulate the table `people`. There are no types defined, and there are no "models" for that matter. Each created object will manipulate a specific table on the database, and __application-wide, there must only be one SimpleDbLayer variable created for each database table_.
+
+When you create `people`, SimpleDbLayer keeps track of the layer created and creates an entry in its internal registry, based on the database table's name. _This means that you can only create one layer variable per table_. **Attempting to create two different layer variables for the same table will result in an error.**
 
 # Create a DB connection
 
@@ -88,7 +90,6 @@ For MongoDB, you can use Mongo's connect call:
     mongo.MongoClient.connect( 'mongodb://localhost/hotplate', {}, function( err, db ){
      // db exists here
     }; 
-
 
 # Make up your DB Layer class: mixins
 
@@ -406,7 +407,7 @@ And the following logical operators (where the value of the field called `args[0
 
 An example could be:
 
-    conditions: {
+    {
       name: 'and',
       args: [
         {
@@ -433,24 +434,28 @@ An example could be:
 Which means `name startsWith 'to' AND ( age > 30 OR age < 10 )`.
 
 
-# **DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
-
 
 # Automatic loading of children (joins)
 
-SimpleDbLayer does _not_ support complex joins. However, you can define how data will be preloaded whenever you fetch a record. Note that, for speed, databases like MongoDb will actually pre-cache results for speed.
+It is common, in application, to need to load a user's information as well as all several pieces of information related to him or her: all email addresses, all phone numbers, etc.
+
+While SimpleDbLayer doesn't suppose joining of tables at query time, it does support joining of tables ad _table definition_ time. This means that you can define how two tables are related before hand.
+
+The main aim of this mechanism is to allow pre-caching of data whenever possible. So, if you have a table `people` and a table `emails`, and they are have a 1:n relationship (that is, the `emails` table contains a `personId` field which will make each record related to a specific person), every time you load a record from `people` you will also automatically load all of his or her email addresses. DB-specific functions will do their best to pre-cache results. This means that, if you are using MongoDB, you can fetch a person's record as well as _any_ information associated with it (email addresses, addresses, phone numbers, etc.) **in a single read**.
 
 ## Define nested layers
 
 You can now define a layer as "child" of another one:
 
-    var people = new DbLayer( 'people', {
+    var people = new DbLayer({
+
+      table: 'people',
 
       schema: new SimpleSchema({
-        id: { type: 'id' },
-        name: { type: 'string', required: true },
+        id     : { type: 'id' },
+        name   : { type: 'string', required: true },
         surname: { type: 'string', searchable: true },
-        age: { type: 'number', searchable: true },
+        age    : { type: 'number', searchable: true },
       }),
 
       idProperty: 'id',
@@ -465,12 +470,14 @@ You can now define a layer as "child" of another one:
 
     } );
 
-    var emails = new DbLayer( 'emails', {
+    var emails = new DbLayer({
+
+      table: 'emails',
 
       schema: new SimpleSchema({
-        id: { type: 'id' },
+        id      : { type: 'id' },
         personId: { type: 'id' },
-        email: { type: 'string', required: true },
+        address : { type: 'string', required: true },
       }),
 
       idProperty: 'id',
@@ -478,17 +485,39 @@ You can now define a layer as "child" of another one:
       nested: [
         {
           type: 'lookup',
-          layer: 'people',          
+          layer: people,          
           layerField: 'id',
           localField: 'personId'          
         }
       ],
     } );
 
-    SimpleDbLayer.initLayers(); // <--- IMPORTANT!
+    SimpleDbLayer.initLayers( DbLayer ); // <--- IMPORTANT!
+
+**It's absolutely crucial that you run `SimpleDbLayer.initLayers()` before running queries if you have nested layers.** 
+
+If you see carefully, when defining `people` I wrote:
+
+    var people = new DbLayer({
+
+      table: 'people',
+      // ...
+      nested: [
+        {
+          type: 'multiple',
+          layer: 'emails', // <-- note: this is a string! Will do a lookup based on the table
+          join: { personId: 'id' },
+        },
+      ]
+
+A layer is a simple Javascript object linked to a specific table. However, when defining the layer `people`, the layer `emails` isn't defined yet -- and yet, you might need to reference it while creating relationships between layers (like in this case: a person has multiple email addresses, but `emails` hasn't been created yet.
+
+The solution is to pass the string `'email'` for the layer property. When you run `SimpleDbLayer.initLayers()`, SimpleDbLayer will go through every `nested` option of every defined layer thanks to the registry, and will also work to 'resolve' the string (based on the table name: in this case, `emails`).
 
 
-***It's absolutely crucial that you run `SimpleDbLayer.initLayers()` before running queries if you have nested layers.***
+
+# **DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
+
 
 As you can see, each layer is created with an extra `nested` parameter, which defines:
 
