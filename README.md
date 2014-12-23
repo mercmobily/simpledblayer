@@ -10,14 +10,14 @@ SimpleDbLayer is a module that allows you to connect and query a DB server. It w
 * [X] Run safeMixin on all passed parameters
 * [X] take out "join" for lookup tables, since it can be inferred easily
 * [ ] Rewrite new documentation <--- PLEASE NOTE THAT DOCUMENTATION IS BEING UPDATED
+* [ ] Write documentation for MongoMixin (now it talks a about a git checkout for tests?!?)
 * [ ] Rewrite tests
+* [ ] Checks what fails for TingoMixin, improve https://github.com/sergeyksv/tingodb/issues/41
 * [ ] Improve range santising function
 
+* [ ] Re-implement search filter definition in JsonRestStores, based on an object
 * [ ] Rewrite documentation for JsonRestStores (the basic module)
 * [ ] Adapt existing software to new API (SimpleDbLayerMixin, Hotplate, BookingDojo)
-
-* [ ] Write objectsearch function for memory, plug it in for module that mixes in with
-      JsonRestStores and SimpleDbLayer (or figure out why only one or the other)
 
 Features:
 
@@ -80,7 +80,7 @@ This is _not_ how SimpleDbLayer works: you don't define models, custom methods f
 
 The plain object `people` will have several methods (`people.update()`, `people.select()`, etc.) which will manipulate the table `people`. There are no types defined, and there are no "models" for that matter. Each created object will manipulate a specific table on the database, and _application-wide, there **must** only be one SimpleDbLayer variable created for each database table_.
 
-When you create `people`, SimpleDbLayer keeps track of the layer created and creates an entry in its internal registry, based on the database table's name. _This means that you can only create one layer variable per table_. **Attempting to create two different layer variables for the same table will result in an error.**
+When you create `people`, SimpleDbLayer keeps track of the layer created and creates an entry in its internal registry, based on the database table's name. _This means that you can only create one layer variable per table_. **Attempting to create two different layer variables for the same table will result in an error being thrown.**
 
 # Create a DB connection
 
@@ -468,7 +468,7 @@ You can now define a layer as "child" of another one:
         },
       ]
 
-    } );
+    });
 
     var emails = new DbLayer({
 
@@ -490,13 +490,15 @@ You can now define a layer as "child" of another one:
           localField: 'personId'          
         }
       ],
-    } );
+    });
 
     SimpleDbLayer.initLayers( DbLayer ); // <--- IMPORTANT!
 
 **It's absolutely crucial that you run `SimpleDbLayer.initLayers()` before running queries if you have nested layers.** 
 
-If you see carefully, when defining `people` I wrote:
+Whenever you load a record from the `people` table, you will also get a `_children` attribute for that object (or, whatever you defined as `childrenField`) that will include all children data. `lookup`s will become one single object, whereas `multiple`s will become array of objects.
+
+If you see carefully, `people` is defined like this:
 
     var people = new DbLayer({
 
@@ -510,21 +512,45 @@ If you see carefully, when defining `people` I wrote:
         },
       ]
 
-A layer is a simple Javascript object linked to a specific table. However, when defining the layer `people`, the layer `emails` isn't defined yet -- and yet, you might need to reference it while creating relationships between layers (like in this case: a person has multiple email addresses, but `emails` hasn't been created yet.
+A layer is a simple Javascript object linked to a specific table. However, when defining the layer `people`, the layer `emails` isn't defined yet -- and yet, you might need to reference it while creating relationships between layers (like in this case: a person has multiple email addresses, but `emails` hasn't been created yet).
 
-The solution is to pass the string `'email'` for the layer property. When you run `SimpleDbLayer.initLayers()`, SimpleDbLayer will go through every `nested` option of every defined layer thanks to the registry, and will also work to 'resolve' the string (based on the table name: in this case, `emails`).
+The solution is to pass the string `'email'` for the `layer` property. When you run `SimpleDbLayer.initLayers()`, SimpleDbLayer will go through every `nested` option of every defined layer thanks to the registry, and will also work to 'resolve' the string (based on the table name: in this case, `emails`).
+
+### Single lookup
+
+For single lookup nesting, `nested` is an array of nested table, each one defining:
+
+* `type`. The type of relationship. In this case, `lookup`.
+* `layer`. The layer object representing the table you are linking to. NOTE that if you have a string instead of an object, the layer object will be looked up using the passed string as a table name.
+* `layerField`. The field, in the foreing table, you are linking to
+* `localField`. The field in the local table.
+
+The way you read this example is "create a `personId` entry in `_children` where `people.id` is the same as the local `personId`". So when you load an email, you will have an attribute in `_children` called `personId` which will contain the full person's record.
+
+### Multiple lookup
+
+For multiple lookup nesting,
+
+`nested` is an array of nested table, each one defining:
+
+* `type`. The type of relationship. In this case, `multiple`.
+* `layer`. The layer object representing the table you are linking to. NOTE that if you have a string instead of an object, the layer object will be looked up using the passed string as a table name.
+* `join`. An object, where each key represents the foreign layer's field, and each value represents the local field.
+
+The way you read this example is "create a `emails` array in `_children` where including all records in `email` where `emails.personId` is the same as the local `id`". So when you load a person, you will have an attribute in `_children` called `emails` which will contain all of the matching email records.
+
+## Searching
+
+The fact that two tables are joined means that you can run queries on children records.
+
+## Practical examples
+
 
 
 
 # **DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
 
 
-As you can see, each layer is created with an extra `nested` parameter, which defines:
-
-* `layer`. The layer you want to automatically load records from
-* `type`. How you want to load your records. If you use `multiple`, SimpleDbLayer will auto-load all children records; with `lookup`, it will only load one record
-* `join`. How the record will be looked up in the parent table. It's a hash object, where the key is the field _foreign_ to the layer that is being defined, and the value is the field _local_ to the layer that is being defined.
-* `localField`. Only required when `type` is `lookup`, this is the name of the field in the `local` layer that is being defined that will be used.
 
 This functionality affects `select()` calls: basically, every time you fetch records, SimpleDbLayer will return a record with a `_children` hash.
 
