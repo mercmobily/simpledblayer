@@ -255,6 +255,7 @@ To insert data into your table:
 The second parameter is optional. If you pass it:
 
 * If `returnRecord` is `true`, then the callback will be called with `record` representing the record just created. Default is `false`.
+* If `children` is `true`, then when using `returnRecord`, the returned record will also include its children. Default is `false`.
 * If `skipValidation` is `true`, then the validation of the data against the schema will be skipped. Default is `false`.
 
 # Querying: `update()`
@@ -477,7 +478,7 @@ You can now define a layer as "child" of another one:
       schema: new SimpleSchema({
         id      : { type: 'id' },
         personId: { type: 'id' },
-        address : { type: 'string', required: true },
+        address : { type: 'string', required: true, searchable: true },
       }),
 
       idProperty: 'id',
@@ -485,9 +486,9 @@ You can now define a layer as "child" of another one:
       nested: [
         {
           type: 'lookup',
+          localField: 'personId' 
           layer: people,          
           layerField: 'id',
-          localField: 'personId'          
         }
       ],
     });
@@ -521,9 +522,9 @@ The solution is to pass the string `'email'` for the `layer` property. When you 
 For single lookup nesting, `nested` is an array of nested table, each one defining:
 
 * `type`. The type of relationship. In this case, `lookup`.
+* `localField`. The field in the local table linking to an external record.
 * `layer`. The layer object representing the table you are linking to. NOTE that if you have a string instead of an object, the layer object will be looked up using the passed string as a table name.
 * `layerField`. The field, in the foreing table, you are linking to
-* `localField`. The field in the local table.
 
 The way you read this example is "create a `personId` entry in `_children` where `people.id` is the same as the local `personId`". So when you load an email, you will have an attribute in `_children` called `personId` which will contain the full person's record.
 
@@ -545,10 +546,227 @@ The fact that two tables are joined means that you can run queries on children r
 
 ## Practical examples
 
+Here is a practical example of what happens when adding data with nested tables:
+
+    function addPeople( cb ){
+
+      var opt = { returnRecord: true, children: true };
+      people.insert( { id: 1, name: 'Tony', surname: 'Mobily', age: 37 }, opt, function( err, recordTony ){
+        if( err ) return cb( err );
+
+        people.insert( { id: 2, name: 'Chiara', surname: 'Mobily', age: 25 }, opt, function( err, recordChiara ){
+          if( err ) return cb( err );
+
+          people.insert( { id: 3, name: 'Sara', surname: 'Fabbietti', age: 15 }, opt, function( err, recordSara ){
+            if( err ) return cb( err );
+
+            cb( null);
+          });
+        });
+      });
+    }
+
+    function addEmails( cb ){
+
+      var opt = { returnRecord: true, children: true };
+  
+      emails.insert( { id: 1, personId: 1, address: 'tonymobily@gmail.com' }, opt, function( err, tonyEmail1 ){
+        if( err ) return cb( err );
+    
+        emails.insert( { id: 2, personId: 1, address: 'merc@mobily1.com' }, opt, function( err, tonyEmail2 ){
+          if( err ) return cb( err );
+        
+          emails.insert( { id: 3, personId: 2, address: 'chiaramobily@gmail.com' }, opt, function( err, chiaraEmail1 ){
+            if( err ) return cb( err );
+
+            cb( null, tonyEmail1, tonyEmail2, chiaraEmail1 );
+          });
+        });
+      });
+    }
+
+
+    function fetchTony( cb ){
+
+      var opt = { children: true };
+  
+      emails.select( { conditions: { name: 'eq', args: [ 'id', 1 ] } }, opt, function( err, data ){
+        if( err ) return cb( err );
+
+        cb( null, data[ 0 ]);
+
+      });
+    }
+
+    function deleteEmailsStartingWithTon( cb ){
+
+      emails.delete( {  name: 'and', args: [  { name: 'startsWith', args: [ 'address', 'TON' ] } ] }, { multi: true }, function( err, n ){
+        if( err ) return cb( err );
+        cb( null, n );
+      });
+    }
+
+
+    function runTest( cb ){
+
+      addPeople( function( err, recordTony, recordChiara, recordSara ){
+        if( err ) return cb( null );
+
+        /*
+        At this point, recordTony is:
+        { id: 1,
+          name: 'Tony',
+          surname: 'Mobily',
+          age: 37,
+         _children: { emails: [] }
+        }
+
+        recordChiara is:
+        { id: 2,
+          name: 'Chiara',
+          surname: 'Mobily',
+          age: 25,
+         _children: { emails: [] }
+        }
+
+        recordSara is:
+        { 
+          id: 3,
+          name: 'Sara',
+          surname: 'Fabbietti',
+          age: 15,
+          _children: { emails: [] } 
+        }    
+        */
+
+        addEmails( function( err, tonyEmail1, tonyEmail2, chiaraEmail1 ){
+          if( err ) return cb( null );
+
+          /*
+          At this point, tonyEmail1 is:
+
+          { id: 1,
+            personId: 1,
+            address: 'tonymobily@gmail.com',
+            _children: 
+             { personId: 
+                { id: 1,
+                  name: 'Tony',
+                  surname: 'Mobily',
+                  age: 37,
+                  __uc__surname: 'MOBILY',
+                  _children: {}
+                }
+              }
+          }
+
+          tonyEmail2 is:
+
+          { id: 2,
+            personId: 1,
+            address: 'merc@mobily1.com',
+            _children: 
+             { personId: 
+                { age: 37,
+                  id: 1,
+                  name: 'Tony',
+                  surname: 'Mobily',
+                  __uc__surname: 'MOBILY',
+                  _children: {}
+                }
+              }
+          }
+
+          chiaraEmail1 is:
+
+          { id: 3,
+            personId: 2,
+            address: 'chiaramobily@gmail.com',
+            _children: 
+             { personId: 
+                { id: 2,
+                  name: 'Chiara',
+                  surname: 'Mobily',
+                  age: 25,
+                  __uc__surname: 'MOBILY',
+                  _children: {} 
+                } 
+              } 
+          }
+
+          Note that each email address has an entry in _children called personId,
+          which represents the record.
+          */
+
+          fetchTony( function( err, tonyRecord ){
+            if( err ) return cb( null );
+
+            /*
+            At this point, tonyRecord includes all email addresses related to that record
+            as an array in _children:
+
+            { id: 1,
+              name: 'Tony',
+              surname: 'Tobily',
+              age: 37,
+              _children: 
+               { emails: 
+                  [ { id: 1,
+                      personId: 1,
+                      address: 'tonymobily@gmail.com',
+                      _children: {} },
+                    { id: 2,
+                      personId: 1,
+                      address: 'merc@mobily1.com',
+                      _children: {} 
+                    } 
+                  ] 
+                } 
+            }
+            */
+
+            deleteEmailsStartingWithTon( function( err, n ){
+              if( err ) return cb( null );
+
+              fetchTony( function( err, tonyRecord ){
+                if( err ) return cb( null );
+
+                /*
+                At this point, the record in emails with id 1 (the only one with an email
+                address started with "ton") is gone. More importantly, when fetchng 'Tony" this is what
+                will return (notice how the deleted email address is gone)
+
+                { id: 1,
+                  name: 'Tony',
+                  surname: 'Tobily',
+                  age: 37,
+                  _children: 
+                   { emails: 
+                      [ 
+                        { id: 2,
+                          personId: 1,
+                          address: 'merc@mobily1.com',
+                          _children: {} 
+                        } 
+                      ] 
+                    } 
+                }
+                */
+              });
+            });
+          });
+        });
+      });
+    }
+  
+The most important thing to remember is that when you use MongoDB in your backend, you will only perform a single read operation when you fetch a person. The children data is cached within the record. Any update operation will affect the main table, as well as any tables holding cached data.
+
+This means that if the email record with ID 2 (`merc@mobily1.com`) is updated, then the cache for the personId with ID 1 will also be updated so that the email address is correct.
 
 
 
 # **DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
+
 
 
 
