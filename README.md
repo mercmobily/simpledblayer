@@ -75,7 +75,7 @@ This is _not_ how SimpleDbLayer works: you don't define models, custom methods f
         idProperty: 'id',
       });
 
-      people.insert( {id: '1', name: 'Tony', surname: 'Mobily', age: '39' });
+      people.insert( {id: 1, name: 'Tony', surname: 'Mobily', age: '39' });
 
 
 The plain object `people` will have several methods (`people.update()`, `people.select()`, etc.) which will manipulate the table `people`. There are no types defined, and there are no "models" for that matter. Each created object will manipulate a specific table on the database, and _application-wide, there **must** only be one SimpleDbLayer variable created for each database table_.
@@ -257,6 +257,7 @@ The second parameter is optional. If you pass it:
 * If `returnRecord` is `true`, then the callback will be called with `record` representing the record just created. Default is `false`.
 * If `children` is `true`, then when using `returnRecord`, the returned record will also include its children. Default is `false`.
 * If `skipValidation` is `true`, then the validation of the data against the schema will be skipped. Default is `false`.
+* `If `position` is defined, and table has a `positionField` element, then the record will be placed in the designated spot. The `position` element should be an object with `where` and optionally `beforeId`. See the [Repositioning section](#Repositioning) section in the documentation for details.
 
 # Querying: `update()`
 
@@ -790,11 +791,10 @@ The most important thing to remember is that when you use MongoDB in your backen
 
 This means that if the email record with ID 2 (`merc@mobily1.com`) is updated, then the cache for the personId with ID 1 will also be updated so that the email address is correct.
 
-# **DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
 
 # Positioning
 
-When records are fetched (using `select`) without chosing any `sort`ing options, they are returned in random order. However, in web applications you often want to decide the `placement` of an element, in order to allow drag&drop sorting etc.
+When records are fetched (using `select`) without chosing any `sort`ing options, they are returned in whichever order the underlying database server returns them. However, in web applications you often want to be able to decide the `placement` of an element, in order to allow drag&drop sorting etc.
 
 Positioning is tricky to manage from the application layer, as changing a field's position requires the update of several records in the database. This is why SimpleDbLayer handles (re)positioning for you.
 
@@ -820,8 +820,8 @@ Note that `positionField` is _not_ defined in the schema. In fact, it will be co
 
 Imagine that you add some data:
 
-    var tony = { id: 1, name: 'Tony', surname: 'Mobily', age: 37 };
-    var chiara = { id: 2, name: 'Chiara', surname: 'Mobily', age: 23 };
+    var tony = { id: 1, name: 'Tony', surname: 'Mobily', age: 39 };
+    var chiara = { id: 2, name: 'Chiara', surname: 'Mobily', age: 25 };
 
     people.insert( tony, { returnRecord: true }, function( err, tony ){
       if( err ) return cb( err );
@@ -830,65 +830,143 @@ Imagine that you add some data:
         if( err ) return cb( err );
         // ...
 
-At this point, you decide to position the record with `id` 2 (chiara) _before_ the one with id `1`. Just run:
+Since the `positionField` is defined, and since `insert()` by default positions new records at the end, the data on the database will actually be:
 
-    people.reposition( chiara, 1, function( err ){
+    [
+      { id: 1,
+        name: 'Tony',
+        surname: 'Mobily',
+        age: 39,
+        position: 1
+      },
 
-The records' `position` field on the database will be updated so that they are in the right order.
+      { id: 2,
+        name: 'Chiara',
+        surname: 'Mobily',
+        age: 25,
+        position: 2
+      }
+    ]
 
-From now on, when running `select` calls _without_ any sorting options, SimpleDbLayer will return them sorted by the `position` field.
+Note the `position` field. Also remember that the `position` field will always be hidden from you by SimpleDbLayer, when returning queries.
+
+However, when running a select:
+
+    people.select( {}, function( err, list ){
+      if( err ) return cb( err );
+
+      // ...
+    });
+
+Since there is no `sort` option specified, you are _guaranteed_ that `list` will return the records in the right order (`Tony` first, and `Chiara` second).
+
+## Positioning at insert time
+
+When inserting a record, you can decide its position by passing a `position` parameter to the `insert()` call. `position` can have:
+
+* `where`. It can be `first`, `last` or `before`. If it's `before`, then the next parameter `beforeId` comes into play. Default: `last`.
+* `beforeId`. If `where` is `before`, then the new record will be placed before `beforeId`.
+
+So, for example:
+
+````javascript
+    var sara = { id: 3, name: 'Sara', surname: 'Fabbietti', age: 15 };
+    var marco = { id: 4, name: 'Marco', surname: 'Fabbietti', age: 54 };
+    var dion = { id: 5, name: 'Dion', surname: 'Patelis', age: 38 }
+
+    // The record will be placed first
+    people.insert( sara, { returnRecord: true, position: 'first' }, function( err, sara ){
+      if( err ) return cb( err );
+
+      // The record will be placed before ID 2 ('Chiara')
+      people.insert( marco, { returnRecord: true, position: 'before', beforeId: 2 }, function( err, marco ){
+        if( err ) return cb( err );
+        // ...
+
+        // The record will be placed last
+        people.insert( dion, { returnRecord: true, position: 'last' }, function( err, dion ){
+          if( err ) return cb( err );
+          // ...
+````
+
+
+## Repositioning
+
+You can decide to move a record `after` inserting it. This is especially useful in case a user moves a record using Drag & Drop in your web application.
+
+To reposition a record, just run `reposition`:
+
+    // Move "Chara" to the start, position 1.
+    people.reposition( chiara, 'start`, null, function( err ){
+      if( err ) return cb( err );
+
+      // ...
+    });
+
+The call `reposition( record, where, beforeId )` will take the following parameters: 
+
+* `record`. This is the record that will be repositioned.
+* `where`. It can be `first`, `last`, or `before`.
+* `beforeId`. If `where` is `before`, then `record` will be positioned before the one with ID `beforeId`.
 
 ## Nested record positioning
 
-In most cases, your records will be "nested" to other ones. Imagine these two layers:
+In most cases, your records will be "nested" to other ones. Imagine the two layers we have dealt with up to this point, `people` and `emails`:
 
-    var people = new DbLayer( 'people', {
+    var people = new DbLayer({
+
+      table: 'people',
 
       schema: new SimpleSchema({
-        id: { type: 'id' },
-        name: { type: 'string', required: true },
+        id     : { type: 'id' },
+        name   : { type: 'string', required: true },
         surname: { type: 'string', searchable: true },
-        age: { type: 'number', searchable: true },
+        age    : { type: 'number', searchable: true },
       }),
 
       idProperty: 'id',
+    });
 
-    } );
+    var emails = new DbLayer({
 
-    var emails = new DbLayer( 'emails', {
+      table: 'emails',
 
       schema: new SimpleSchema({
-        id: { type: 'id' },
+        id      : { type: 'id' },
         personId: { type: 'id' },
-        email: { type: 'string', required: true },
+        address : { type: 'string', required: true, searchable: true },
       }),
 
       idProperty: 'id',
+    });
 
-    } );
-
-Each person will have a number of emails -- all the ones with the corresponding personId. When dealing with positioning, you need to take into account what fields define the 'ordering grouping': placing an email address before another one should only ever affect the records belonging to the same person.
+Each person will have a number of emails -- all the ones with the corresponding `personId`. When dealing with positioning, you need to take into account what fields define the 'ordering grouping': placing an email address before another one should only ever affect the records belonging to the same person.
 
 This is where the `positionBase` array comes in.
 
 This is how you would make the `emails` layer able to handle positioning:
 
-    var emails = new DbLayer( 'emails', {
+    var emails = new DbLayer({
+
+      table: 'emails',
 
       schema: new SimpleSchema({
-        id: { type: 'id' },
+        id      : { type: 'id' },
         personId: { type: 'id' },
-        email: { type: 'string', required: true },
+        address : { type: 'string', required: true, searchable: true },
       }),
 
       idProperty: 'id',
 
       positionField: 'position',
       positionBase: [ 'personId' ],
-
-    } );
+    });
 
 The attribute `positionBase` basically decides the domain in which the reordering will happen: only records where `personId` matches the moving record's `personId` will be affected by repositioning.
+
+This means that repositioning one of Tony's email address will not affect the order of Chiara's email address.
+
+# **DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
 
 # Indexing
 
