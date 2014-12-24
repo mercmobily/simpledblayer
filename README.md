@@ -548,6 +548,7 @@ The fact that two tables are joined means that you can run queries on children r
 
 Here is a practical example of what happens when adding data with nested tables:
 
+```javascript
     function addPeople( cb ){
 
       var opt = { returnRecord: true, children: true };
@@ -752,140 +753,21 @@ Here is a practical example of what happens when adding data with nested tables:
                     } 
                 }
                 */
+
               });
             });
           });
         });
       });
     }
-  
+```
+
 The most important thing to remember is that when you use MongoDB in your backend, you will only perform a single read operation when you fetch a person. The children data is cached within the record. Any update operation will affect the main table, as well as any tables holding cached data.
 
 This means that if the email record with ID 2 (`merc@mobily1.com`) is updated, then the cache for the personId with ID 1 will also be updated so that the email address is correct.
 
 
-
 # **DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
-
-
-
-
-This functionality affects `select()` calls: basically, every time you fetch records, SimpleDbLayer will return a record with a `_children` hash.
-
-## Getting the results
-
-Assume that you insert:
-
-    people.insert( {
-
-      id: 100,
-      name: 'Tony',
-      surname: 'Mobily',
-      age: 37
-
-    }, { returnRecord: true }, function( err, record ){
-    
-      if( err ) return cb( err );
-
-      email.insert( {
-
-        id: 10,
-        personId: 100,
-        email: 'tony@example.com'
-
-      }, { returnRecord: true }, function( err, record ){
-        if( err ) return cb( err );
-
-      email.insert( {
-
-        id: 11,
-        personId: 100,
-        email: 'tonyAnotherOne@example.com'
-
-      }, { returnRecord: true }, function( err, record ){
-        if( err ) return cb( err );
-
-        //...
-
-When fetching the person with id 100:
-
-    people.select( { conditions: { and: [ { field: 'id', type: 'eq', value: 100 } ] } }, { children: true }, function( err, data ){
-
-
-Since `children: true` is passed in the option, this will be returned:
-
-    {
-      id: 100,
-      name: 'Tony',
-      surname: 'Mobily',
-      age: 37,
-      _children: {
-        emails: [
-        
-          {
-            id: 10,
-            personId: 100,
-            email: 'tony@example.com'
-            _children: {},
-          },
-
-          {
-            id: 11,
-            personId: 100,
-            email: 'tonyAnotherOne@example.com'
-            _children: {},
-          }
-
-        ],
-
-      }
-    }
-
-
-When fetching the email with id 10:
-
-    emails.select( { conditions: { and: [ { field: 'id', type: 'eq', value: 10 } ] } }, { children: true }, function( err, data ){
-
-, it will return:
-
-    {    
-      id: 10,
-      personId: 100,
-      email: 'tony@example.com',
-      _children: {
-
-        personId: {
-          id: 100,
-          name: 'Tony',
-          surname: 'Mobily',
-          age: 37
-        },
-      }
-    }
-
-Finally, you can change the name of the `_children` field when instantiating the class, by setting a different `childrenField` attribute:
-
-    var people = new DbLayer( 'people', {
-
-      schema: new SimpleSchema({
-        id: { type: 'id' },
-        name: { type: 'string', required: true },
-        surname: { type: 'string', searchable: true },
-        age: { type: 'number', searchable: true },
-      }),
-
-      idProperty: 'id',
-
-      nested: [
-        {
-          layer: 'emails',
-          join: { personId: 'id' },
-          type: 'multiple',
-        },
-      ]
-
-      childrenField: '_children',
-    } );
 
 
 # Positioning
