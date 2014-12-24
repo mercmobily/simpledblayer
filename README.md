@@ -542,7 +542,31 @@ The way you read this example is "create a `emails` array in `_children` where i
 
 ## Searching
 
-The fact that two tables are joined means that you can run queries on children records.
+The fact that two tables are joined means that you can run queries on children records as well as on its "main" records.
+
+For example, you can run a query like this:
+
+    
+    var conditions = {
+      name: 'and',
+      args: [
+        {
+          name: 'startsWith',
+          args: [ 'emails.address', 'ton' ]
+        },
+        {
+          name: 'gt',
+          args: [ 'age', 30 ]
+        },
+      ]
+    }
+    people.select( { conditions: conditions }, { children: true }, function( err, data ){
+      if( err ) return cb( err );
+
+      console.log("Data: ", data );
+    });
+
+This query will return all record with an email address starting with `ton`. In MongoDB, this happens by performing a query in the `_children` attribute of the record. In relational (uncached) databases, a JOIN will be used instead.
 
 ## Practical examples
 
@@ -766,15 +790,13 @@ The most important thing to remember is that when you use MongoDB in your backen
 
 This means that if the email record with ID 2 (`merc@mobily1.com`) is updated, then the cache for the personId with ID 1 will also be updated so that the email address is correct.
 
-
 # **DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
-
 
 # Positioning
 
 When records are fetched (using `select`) without chosing any `sort`ing options, they are returned in random order. However, in web applications you often want to decide the `placement` of an element, in order to allow drag&drop sorting etc.
 
-Positioning is tricky to manage from the application layer, as changing a field's position requires the update of several records in the database. This is why SimpleDbLayer handles positioning for you.
+Positioning is tricky to manage from the application layer, as changing a field's position requires the update of several records in the database. This is why SimpleDbLayer handles (re)positioning for you.
 
 ## Basic positioning
 
