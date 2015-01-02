@@ -8,10 +8,11 @@ SimpleDbLayer is a module that allows you to connect and query a DB server. It w
 * [X] SearchableHash -> change it to the field type, 'string', 'id', etc.
 * [X] Make DB a normal parameter, rather than the constructor's third parameter
 * [X] Run safeMixin on all passed parameters
-* [X] take out "join" for lookup tables, since it can be inferred easily
+* [X] Take out "join" for lookup tables, since it can be inferred easily
+* [X] Rewrite indexing functions, adding extraIndexes as an option first
 * [ ] Rewrite new documentation <--- PLEASE NOTE THAT DOCUMENTATION IS BEING UPDATED
 * [ ] Write documentation for MongoMixin (now it talks a about a git checkout for tests?!?)
-* [ ] Rewrite tests
+* [ ] Update tests
 * [ ] Checks what fails for TingoMixin, improve https://github.com/sergeyksv/tingodb/issues/41
 * [ ] Improve range santising function
 
@@ -27,6 +28,7 @@ Features:
 * It allows 1-level joins in queryes and data fetching; joins are defined right in the table definition.
 * The 1-level join is in the table definition because, using MongoDB, children data will be _preloaded_ and automatically updated. This means that you will be able to the record of a person, with all associated addresses, email addresses, phone numbers, etc. _in one single DB operation_.
 * It is written with very simple, Object Oriented code using [simpledeclare](https://github.com/mercmobily/simpleDeclare)
+* For each managed database table, there is -- and there _can be_ -- only one plain Javascript object which will manipulate that table.
 * Positioning management. You can define the position of a record, which will affect the order they are returned from a query when no sorting is specified (very useful when implementing Drag&Drop in your web application)
 * Semi-automatic index generation. Indexes will be created automatically as much as possible. For example, all fields marked as `searchable` will be defined as an index, as well as indexes for positioning.
 
@@ -55,7 +57,7 @@ SimpleDbLayer is exactly what it says: a (thin) database layer. Most of the othe
     user.name = "tony";
     user.save();`.
 
-This is _not_ how SimpleDbLayer works: you don't define models, custom methods for specific models, etc. SimpleDbLayer is a _thin_ layer around database data. In SimpleDbLayer, each database table is mapped to a _plain database object_:
+This is _not_ how SimpleDbLayer works: you don't define models, custom methods for specific models, etc. SimpleDbLayer is a _thin_ layer around database data. In SimpleDbLayer, each managed database table is mapped to exacly _one plain database object_:
 
 
     // ...Include module, create database connection, etc.
@@ -78,9 +80,11 @@ This is _not_ how SimpleDbLayer works: you don't define models, custom methods f
       people.insert( {id: 1, name: 'Tony', surname: 'Mobily', age: '39' });
 
 
-The plain object `people` will have several methods (`people.update()`, `people.select()`, etc.) which will manipulate the table `people`. There are no types defined, and there are no "models" for that matter. Each created object will manipulate a specific table on the database, and _application-wide, there **must** only be one SimpleDbLayer variable created for each database table_.
+The plain Javascript object `people` will have several methods (`people.update()`, `people.select()`, etc.) which will manipulate the corresponding table `people`. There are no types defined, and there are no "models" for that matter. Each created object will manipulate a specific table on the database, and _application-wide, there **must** only be one SimpleDbLayer variable created for each database table_.
 
-When you create `people`, SimpleDbLayer keeps track of the layer created and creates an entry in its internal registry, based on the database table's name. _This means that you can only create one layer variable per table_. **Attempting to create two different layer variables for the same table will result in an error being thrown.**
+When you create `people`, SimpleDbLayer keeps track of the layer created and creates an entry in its internal registry, based on the database table's name. _This means that you can only create one layer variable (a plain Javascript object) per table_. **Attempting to create two different layer variables for the same table will result in an error being thrown. Only one plain Javascript object per DB table is allowed.**
+
+In an applicatiom, you will typically want to define those store objects in a module so that any other module can `require` them.
 
 # Create a DB connection
 
@@ -966,8 +970,6 @@ The attribute `positionBase` basically decides the domain in which the reorderin
 
 This means that repositioning one of Tony's email address will not affect the order of Chiara's email address.
 
-# **DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
-
 # Indexing
 
 You can create and delete indexes using SimpleDbLayer.
@@ -989,30 +991,139 @@ This metod `dropIndex()` will drop an index.
 
 The method `dropAllIndexes` will drop all indexes for the table/collection.
 
-## `generateSchemaIndexes()`
+## `generateSchemaIndexes( options, callback )`
 
-This function is used to generate indexes depending on what fields are marked as `searchable` in the schema. The implementation of this depends on the capabilities and architecture of the database server you are using. The goal is to make sure that all searches are based on indexes.
+This function is used to generate indexes depending on what fields are marked as `searchable` in the schema. Where `options` is an options object. Possible keys:
+
+* `background`. If `true`, indexes will be generated in the background and the `callback` will be called immediately.
+
+The implementation of this depends on the capabilities and architecture of the database server you are using. The goal is to make sure that the most common searches are based on indexes, leaving you the task of adding only the special cases by hand.
+
+In most cases, database engines should at least create the following:
+
+* The `idProperty` field will be indexed, and will be marked as `unique`.
+* Any field marked as `searchable` will be indexed. If `indexBase` is defined as an array, every field marked as `searchable` will be indexed with the `indexBase` values as prefix.
+* If `positionField` is set, then `positionField` will also be indexed (along with its `positionBase`)
+* If `extraIndexes` is set, any index defined there will be created. If `indexBase` is defined as an array, every fieldset defined in `extraIndexes` will also be indexed with the `indexBase` values as prefix.
+
+(Note: for MongoDB, which pre-caches children records within the main records, indexes will be created for the sub-fields as well, voiding indeing of foreign keys whenever possible (although _some_ wastage does happen)).
 
 Imagine that you have a schema so defined:
 
-    schema: new SimpleSchema({
-      id: { type: 'id' },
-      name: { type: 'string', required: true },
-      surname: { type: 'string', searchable: true },
-      age: { type: 'number' },
-    }),
+    var people = new DbLayer({
 
-The only searchable field is `surname`: an index will definitely be created to statisfy it
+      table: 'people',
+
+      schema: new SimpleSchema({
+        workspaceId : { type: 'id', searchable: true },
+        id          : { type: 'id' },
+        name        : { type: 'string', searchable: true, required: true },
+        surname     : { type: 'string', searchable: true },
+        age         : { type: 'number' },
+      }),
+
+      // ID property
+      idProperty: 'id',
+
+      // Position fields
+      positionField : 'position',
+      positionBase: [ 'workspaceId' ],
+
+      // Indexes properties
+      indexBase: [ 'workspaceId']
+      extraIndexes: [
+        {
+          name: 'nameSurname',
+          options: { },
+          keys   : { name: 1, surname: 1 },
+        }
+      ],
+
+    });
+
+Note that `positionField` is set as `position`, and that each workspace will have its own ordering thanks to `positionBase` set to `[ 'workspaceId' ]`. Also, note that there is also `indexBase` set as `[ 'workspaceId' ]`, which tells SimpleDbLayer that most searches will be done with `workspaceId` set.
+The following indexes will generally be created:
+
+* `idProperty`. It will be marked as `unique` so that there won't be any duplicates.
+* `name`. The straight "name" field.
+* `surname. The straight "surname" field.
+* `workspaceId+name`. The "name" field, index with a prepending `workspaceId` (since most searches will be likely to include it)
+* `workspaceId+surname`. The "surname" field, index with a prepending `workspaceId` (since most searches will be likely to include it).
+* `workspaceId+position`. The "position" field, including the `positionBase` (since sorting will always be based on `positionBase`).
+* `name+surname`. This will be created thanks to `extraIndexes`, which is used to create indexs for common cases like this one
+
+
+Basically, simpleDbLayer covers the most common scenarios in terms of indexing, with the flexibility of defining extra indxes with `extraIndexes` (for example for `name+surname`), so that slow queries are avoided at all costs minimising wastage in terms of indexing.
+
+### Customising what `generateSchemaIndexes()` does
+
+To define custom indexes that cannot be covered with the options above, or to perform extra db-specific operations while creating indexes, you could override the `generateSchemaIndexes` method for your layer:
+
+    var people = new DbLayer({
+
+      table: 'people',
+
+      schema: new SimpleSchema({
+        workspaceId : { type: 'id' },
+        id          : { type: 'id' },
+        name        : { type: 'string', searchable: true, required: true },
+        surname     : { type: 'string', searchable: true },
+        age         : { type: 'number' },
+      }),
+
+      idProperty: 'id',
+
+      positionField : 'position',
+      positionBase: [ 'workspaceId' ],
+
+      indexBase: [ 'workspaceId'],
+
+      generateSchemaIndexes: function generateSchemaIndexes( options, callback ){
+        var self = this;
+
+        // Call the original call
+        this.inheritedAsync( generateSchemaIndexes, arguments, function( err ){
+          if( err ) return callback( err );
+
+          // Make indexes for name and surname together
+          self.makeIndex( { name: 1, surname: 1 }, 'nameSurname', options, function( err ){
+            if( err ) return callback( err );
+
+            // Make indexes for name and surname including the workspaceId
+            self.makeIndex( { workspaceId: 1, name: 1, surname: 1 }, 'workspaceIdNameSurname', options, function( err ){
+              if( err ) return callback( err );
+
+              // All good, return!
+              callback( null );
+            });
+          }), 
+        });
+
+      },
+    });
+
+
+(Yes, this particular example could have easily been done with `extraIndexes`). Note that in this code the original `generateSchemaIndexes()` function was overridden by a custom one. However, the original call was actually called thanks to `this.inheritedAsync()` (which is available thanks to simpleDeclare). Then `self.nameIndex()` was called twice, with the new indexes.
+
+
+### Class-level functions.
 
 SimpleDbLayer provides two class-level functions that affect all the layers in the registry:
 
-### `SimpleDbLayer.generateSchemaIndexesAllLayers()`
+#### `SimpleDbLayer.generateSchemaIndexesAllLayers( Layer, options, callback )`.
 
-This function does what it says: it generates all schema indexes for every layer defined in the registry.
+This function does what it says: it generates all schema indexes for every layer defined in the registry. Parameters:
 
-### `SimpleDbLayer.dropAllIndexesAllLayers()`
+* `Layer`. This is the layer you are referring to. Remember that you can potentially create one layer for MongoDb and one for MySql (depending on the mixin). So, you need to tell this function which layer you are referring to.
+* `options`. Any options that will be passed to each `generateSchemaIndexes()` call
+* `callback`. The callback that will be called. 
 
-This function drops all indexes for every layer defined in the registry.
+#### `SimpleDbLayer.dropAllIndexesAllLayers( Layer, callback)`.
+
+This function drops all indexes for every layer defined in the registry. Parameters:
+
+* `Layer`. This is the layer you are referring to.
+* `callback`. The callback that will be called. 
 
 #### A note on inherited classes.
 
@@ -1021,7 +1132,11 @@ Remember that class functions are inherited by subclasses when subclassing is do
       // Make up the database class
       var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
 
-You can run `DbLayer.generateSchemaIndexesAllLayers()` as well as `SimpleDbLayer.generateSchemaIndexesAllLayers()`.
+You can run `DbLayer.generateSchemaIndexesAllLayers()` as well as `SimpleDbLayer.generateSchemaIndexesAllLayers()`. However, you _must_ remember to pass the specific layer constructor as first parameter regardless.
+
+
+# **DOCUMENTATION UPDATE STOPS HERE. ANYTHING FOLLOWING THIS LINE IS 100% OUT OF DATE.**
+
 
 # Layer registry
 
