@@ -27,12 +27,13 @@ var SimpleDbLayer = declare( null, {
   db: null,
 
   // Optional fields, defaults set here
+  SchemaError: Error,
   positionField: null,
   positionBase: [],
   childrenField: '_children',
   nested: [],
   hardLimitOnQueries: 0,
-  SchemaError: Error,
+  extraIndexes: [],
    
   // Fields that will be redefined in constructor, here for aesthetic reasons 
   childrenTablesHash: {},
@@ -40,6 +41,7 @@ var SimpleDbLayer = declare( null, {
   multipleChildrenTablesHash: {},
   parentTablesArray: [],
   _indexGroups: { },
+
   _searchableHash: {},
 
   constructor: function( options ){
@@ -70,9 +72,10 @@ var SimpleDbLayer = declare( null, {
       throw( new Error("idProperty needs to be a field in the schema") );
     }
 
-    // idProperty NEEDS to be required and searchable
+    // idProperty NEEDS to be required and searchable, and (index-wise) unique
     options.schema.structure[ options.idProperty ].required = true;
     options.schema.structure[ options.idProperty ].searchable = true;
+    options.schema.structure[ options.idProperty ].indexOptions = { unique: true };
 
     // Gets its own variables, avoid using the prototype's by accident
     self.childrenTablesHash = {};
@@ -88,16 +91,53 @@ var SimpleDbLayer = declare( null, {
 
     var self = this;
 
-    self._indexGroups = { __main: {} };
+    self._indexGroups = { __main: { indexes: {}, indexBase: self.indexBase } };
 
     self._searchableHash = {};
    
     // Add entries to _searchableHash and _indexGroups
     Object.keys( self.schema.structure ).forEach( function( field ) {
       var entry = self.schema.structure[ field ];
-      if( entry.searchable ) self._searchableHash[ field ] = entry;
-      if( entry.searchable ) self._indexGroups.__main[ field ] = entry;
+
+      // Add the searchable entry as a single index, and honouring the indexDirection, indexOptions and
+      // indexName options in the schema
+      if( entry.searchable ){
+
+        self._searchableHash[ field ] = entry;
+
+        // indexName and indexDirection can be changed by the schema definition
+        var indexDirection = typeof( entry.indexDirection ) !== 'undefined' ? entry.indexDirection : 1;
+        var indexName = typeof( entry.indexName ) !== 'undefined' ? entry.indexName : field;
+        var indexOptions = typeof( entry.indexOptions ) !== 'undefined' ? entry.indexOptions : {};
+
+        var newEntry = { fields: {}, options: indexOptions };
+        newEntry.fields[ field ] = { entry: entry, direction: indexDirection };
+        //newEntry[ field ] = entry;
+        self._indexGroups.__main.indexes[ indexName ] = newEntry;
+      }
+
     });
+    
+    // Add the extra indexes as defined in extraIndexes 
+    Object.keys( self.extraIndexes ).forEach( function( indexName ) {
+      index = self.extraIndexes[ indexName ];
+
+      indexOptions = index.options;
+
+      // Work out the index's keys. This is the same as the passed "keys", but rather than
+      // something line `{ workspaceId: 1 }`, it's `{ workspaceId: { direction: 1, entry: { type: 'id' } } }`
+      fields = {};
+      Object.keys( index.fields ).forEach( function( fieldName ){
+
+        var entry = self.schema.structure[ fieldName ];
+
+        var direction = index.fields[ fieldName ];
+        fields[ fieldName ] = { entry: entry, direction: direction };
+      });
+      self._indexGroups.__main.indexes[ indexName ] = { extra: true, fields: fields, options: indexOptions };
+    });
+
+
 
   },
 
@@ -187,31 +227,60 @@ var SimpleDbLayer = declare( null, {
       if( childNestedParams.type === 'lookup' ){
         childLayer._searchableHash[ layerField ] = childLayer.schema.structure[ layerField ];
         childLayer.schema.structure[ layerField ].searchable = true;
-
       }
 
       // Making sure that all searchable fields in child layer are searchable,
       // in the parent layer, as `parent.childField`
-      Object.keys( childLayer.schema.structure ).forEach( function( k ){
+      Object.keys( childLayer.schema.structure ).forEach( function( fieldName ){
 
-        var entry = childLayer.schema.structure[ k ];
-        consolelog( "Field:" , k, ", Entry for that field: -- type: ", entry );
+        var entry = childLayer.schema.structure[ fieldName ];
+        consolelog( "Field:" , fieldName, ", Entry for that field: -- type: ", entry );
         consolelog( entry );
 
         // If entry is searchable, add the field to the _searchableHash
         if( entry.searchable ){
-          consolelog("Field is searchable! So: ", subName + "." + k, "will be searchable in father table" );
+          consolelog("Field is searchable! So: ", subName + "." + fieldName, "will be searchable in father table" );
 
-          self._searchableHash[ subName + "." + k ] = entry;
+          self._searchableHash[ subName + "." + fieldName ] = entry;
 
-          // Add the sub-table to the father's _indexGroups variable
-          // For now, _indexGroups is only really useful to MongoDb
-          self._indexGroups[ subName ] = self._indexGroups[ subName ] || { };
-          self._indexGroups[ subName ][ k ] = entry;
+          // Add the entry to indexGroup
+          self._indexGroups[ subName ] = self._indexGroups[ subName ] || { indexes: {}, indexBase: childLayer.indexBase };
+          if( entry.searchable ){
 
-        }
+            // indexName and indexDirection can be changed by the schema definition
+            var indexDirection = typeof( entry.indexDirection ) !== 'undefined' ? entry.indexDirection : 1;
+            var indexName = typeof( entry.indexName ) !== 'undefined' ? entry.indexName : fieldName;
+            var indexOptions = typeof( entry.indexOptions ) !== 'undefined' ? entry.indexOptions : {};
 
+            var newEntry = { fields: {}, options: indexOptions };
+            newEntry.fields[ fieldName ] = { entry: entry, direction: indexDirection };
+
+            self._indexGroups[ subName].indexes[ indexName ] = newEntry;
+          }
+        }        
       }); 
+
+
+      // Add the extra indexes as defined in extraIndexes 
+      Object.keys( childLayer.extraIndexes ).forEach( function( indexName ) {
+        index = childLayer.extraIndexes[ indexName ];
+
+        indexOptions = index.options;
+
+        // Work out the index's keys. This is the same as the passed "keys", but rather than
+        // something line `{ workspaceId: 1 }`, it's `{ workspaceId: { direction: 1, entry: { type: 'id' } } }`
+        fields = {};
+        Object.keys( index.fields ).forEach( function( fieldName ){
+
+          var entry = childLayer.schema.structure[ fieldName ];
+
+          var direction = index.fields[ fieldName ];
+          fields[ fieldName ] = { entry: entry, direction: direction };
+        });
+        self._indexGroups[ subName ].indexes[ indexName ] = { extra: true, fields: fields, options: indexOptions };
+      });
+
+
       
       consolelog("Making sure that join keys are searchable and in child's _searchableHash:" );
 
@@ -400,7 +469,6 @@ var SimpleDbLayer = declare( null, {
   dropAllIndexes: function( cb ){
     cb( null );
   },
-
 
   generateSchemaIndexes: function( options, cb ){
     cb( null );
