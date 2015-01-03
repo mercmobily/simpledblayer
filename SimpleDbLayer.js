@@ -126,7 +126,7 @@ var SimpleDbLayer = declare( null, {
 
       // Work out the index's keys. This is the same as the passed "keys", but rather than
       // something line `{ workspaceId: 1 }`, it's `{ workspaceId: { direction: 1, entry: { type: 'id' } } }`
-      fields = {};
+      var fields = {};
       Object.keys( index.fields ).forEach( function( fieldName ){
 
         var entry = self.schema.structure[ fieldName ];
@@ -269,7 +269,7 @@ var SimpleDbLayer = declare( null, {
 
         // Work out the index's keys. This is the same as the passed "keys", but rather than
         // something line `{ workspaceId: 1 }`, it's `{ workspaceId: { direction: 1, entry: { type: 'id' } } }`
-        fields = {};
+        var fields = {};
         Object.keys( index.fields ).forEach( function( fieldName ){
 
           var entry = childLayer.schema.structure[ fieldName ];
@@ -476,8 +476,39 @@ var SimpleDbLayer = declare( null, {
 
 });
 
+
+// **************************************************************************
+//                        CLASS FUNCTIONS
+// **************************************************************************
+// All of these functions operate on the premise that they have a
+// `registry` variable attached to the constructor itself. This registry is
+// used by makeTableHashes() to look up a layer object from a table:
+// 
+//   if( typeof( childNestedParams.layer ) === 'string' ){
+//      childNestedParams.layer = self.constructor.registry[ childNestedParams.layer ];
+//    }
+//
+// So, it's absolutely crucial that db-specific mixins do their job properly, and
+//
+// 1) Add a registry to their constructing function: `MongoMixin.registry = {};`
+// 2) Add each created instance to the registry by having this in their constructor:
+//    constructor: function(){
+//      // ...
+//     `MongoMixin.registry[ self.table ] = self;`
+//
+// This all works on the premise that when using simpleDeclare(), the new constructor
+// also inherits all class method from the parent.
+// While the function themselves will be different, when accessing `this` from
+// withing DbLayer.getLayer(), this.registry will be MongoMixin's (which is what
+// we want).
+//
+// **************************************************************************
+
+
 // Initialise all layers, creating relationship hashes
-SimpleDbLayer.initLayers = function( Layer ){
+SimpleDbLayer.initLayers = function( SimpleDbLayer ){
+
+  var Layer = this;
 
   Object.keys( Layer.registry ).forEach( function( key ){
     var layer = Layer.registry[ key ];
@@ -485,25 +516,29 @@ SimpleDbLayer.initLayers = function( Layer ){
   });
 }
 // Get layer from the class' registry
-SimpleDbLayer.getLayer = function( Layer, tableName ){
+SimpleDbLayer.getLayer = function( tableName ){
   if( typeof( Layer.registry ) === 'undefined' ) return undefined;
   return Layer.registry[ tableName ];
 }
 
 // Get all layers as a hash
-SimpleDbLayer.getAllLayers = function( Layer ){
+SimpleDbLayer.getAllLayers = function(){
+  var Layer = this;
+  
   return Layer.registry;
 }
 
-SimpleDbLayer.generateSchemaIndexesAllLayers = function( Layer, options, cb ){
+SimpleDbLayer.generateSchemaIndexesAllLayers = function( options, cb ){
 
+  var Layer = this;
+  
   // This will contain the array of functions, one per layer
   var indexMakers = [];
 
   // Add one item to indexMakers for each table to reindex
-  Object.keys( Layer.getAllLayers( Layer ) ).forEach( function( table ){
+  Object.keys( Layer.getAllLayers() ).forEach( function( table ){
 
-    var layer = Layer.getLayer( Layer, table );
+    var layer = Layer.getLayer( table );
     
     indexMakers.push( function( cb ){
       layer.generateSchemaIndexes( options, cb );
@@ -514,15 +549,17 @@ SimpleDbLayer.generateSchemaIndexesAllLayers = function( Layer, options, cb ){
   async.series( indexMakers, cb );
 }
 
-SimpleDbLayer.dropAllIndexesAllLayers = function( Layer, options, cb ){
+SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
 
+  var Layer = this;
+  
   // This will contain the array of functions, one per layer
   var indexMakers = [];
 
   // Add one item to indexMakers for each table to reindex
-  Object.keys( Layer.getAllLayers( Layer ) ).forEach( function( table ){
+  Object.keys( Layer.getAllLayers() ).forEach( function( table ){
 
-    var layer = Layer.getLayer( Layer, table );
+    var layer = Layer.getLayer( table );
     
     indexMakers.push( function( cb ){
       layer.dropAllIndexes( cb );
