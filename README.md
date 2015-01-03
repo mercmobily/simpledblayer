@@ -10,8 +10,10 @@ SimpleDbLayer is a module that allows you to connect and query a DB server. It w
 * [X] Run safeMixin on all passed parameters
 * [X] Take out "join" for lookup tables, since it can be inferred easily
 * [X] Rewrite indexing functions, adding extraIndexes as an option first
-* [ ] Change class-wide functions, so that there is no need to pass the constructor
-* [ ] Rewrite new documentation <--- PLEASE NOTE THAT DOCUMENTATION IS BEING UPDATED
+* [X] Change class-wide functions, so that there is no need to pass the constructor
+* [X] Rewrite new documentation <--- DONE!
+* [X] Add 'dirty' field, if true it will reload children and then return
+* [ ] Write dirtyRecord, dirtyAlllRecords, and test the whole clean thing a little more
 * [ ] Write documentation for MongoMixin (now it talks a about a git checkout for tests?!?)
 * [ ] Update tests
 * [ ] Maybe use minimongo, if not try to improve https://github.com/sergeyksv/tingodb/issues/41
