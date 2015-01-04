@@ -13,9 +13,9 @@ SimpleDbLayer is a module that allows you to connect and query a DB server. It w
 * [X] Change class-wide functions, so that there is no need to pass the constructor
 * [X] Rewrite new documentation <--- DONE!
 * [X] Add 'dirty' field, if true it will reload children and then return
-* [ ] Write dirtyRecord, dirtyAlllRecords, and test the whole clean thing a little more
-* [ ] Write documentation for MongoMixin (now it talks a about a git checkout for tests?!?)
-* [ ] Update tests
+* [X] Write dirtyRecord, dirtyAllRecords, and test the whole clean thing a little more
+* [X] Write documentation for MongoMixin (now it talks a about a git checkout for tests?!?)
+* [ ] Update tests, update NPM so that it will load tests
 * [ ] Maybe use minimongo, if not try to improve https://github.com/sergeyksv/tingodb/issues/41
 * [ ] Improve range santising function
 * [ ] Maybe improve simpleDeclare so that each class has "extend", improve its documentation
@@ -577,6 +577,26 @@ For example, you can run a query like this:
 
 This query will return all record with an email address starting with `ton`. In MongoDB, this happens by performing a query in the `_children` attribute of the record. In relational (uncached) databases, a JOIN will be used instead.
 
+## Caching layers
+
+Some layers (notably, MongoDB) lack the ability to do joins. To minulate joins, normally you would need to run an extra query for each fetched record. This would potentially put a strain on the database server.
+
+Layers might then implement pre-caching of children records. In such a case, you will need functions to mark records and collections "dirty" -- meaning that their children's basic structure has changed, and the cache s no longer reliable.
+
+SimpleDbLayer provides three functions to deal with this:
+
+### dirtyRecord( obj, cb )
+
+It will mark the record dirty.
+
+### dirtyAll( cb )
+
+It will mark all records dirty
+
+### dirtyAllParents( cb )
+
+It will mark all records of all parent tables dirty. This is probably the most useful function, which should be run whenever you change the structure of a table.
+
 ## Practical examples
 
 Here is a practical example of what happens when adding data with nested tables:
@@ -973,6 +993,8 @@ This is how you would make the `emails` layer able to handle positioning:
 The attribute `positionBase` basically decides the domain in which the reordering will happen: only records where `personId` matches the moving record's `personId` will be affected by repositioning.
 
 This means that repositioning one of Tony's email address will not affect the order of Chiara's email address.
+
+Note that all elements in `positionBase` will need to be defined in the schema, and that they will be forced as `searchable` and `required`.
 
 # Indexing
 
