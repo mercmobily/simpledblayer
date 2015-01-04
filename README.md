@@ -15,14 +15,22 @@ SimpleDbLayer is a module that allows you to connect and query a DB server. It w
 * [X] Add 'dirty' field, if true it will reload children and then return
 * [X] Write dirtyRecord, dirtyAllRecords, and test the whole clean thing a little more
 * [X] Write documentation for MongoMixin (now it talks a about a git checkout for tests?!?)
-* [ ] Update tests, update NPM so that it will load tests
-* [ ] Maybe use minimongo, if not try to improve https://github.com/sergeyksv/tingodb/issues/41
-* [ ] Improve range santising function
+* [X] Implement, and document, cursor.each() (much needed or cursors are hard to use)
+* [ ] Improve range santising function, change the API, only have `skip` and `count`
 * [ ] Maybe improve simpleDeclare so that each class has "extend", improve its documentation
+* [ ] Change SimpleDbLayer's documentation to use `extend()`
 
-* [ ] Re-implement search filter definition in JsonRestStores, based on an object
+* [ ] Update tests, update NPM so that it will load tests
+* [ ] Document which tests are missing
+* [ ] Maybe use minimongo, if not try to improve https://github.com/sergeyksv/tingodb/issues/41
+
+* [ ] Re-implement search filter definition in JsonRestStores, based on an object acting as template
 * [ ] Rewrite documentation for JsonRestStores (the basic module)
+* [ ] Rewrite documentation for JsonRestStores' SimpleDbLayerMixin
+* [ ] Rewrite tests for JsonRestStores (the basic module)
+* [ ] Rewrite tests for JsonRestStores' SimpleDbLayerMixin
 * [ ] Adapt existing software to new API (SimpleDbLayerMixin, Hotplate, BookingDojo)
+* [ ] Implement filter in dstore that mimics 100% the querying in JsonRestStores, test everything
 
 Features:
 
@@ -53,7 +61,7 @@ At the moment, here is the list of database-specific adapters:
 
 # Note: "SimpleDbLayer is not an ORM"
 
-SimpleDbLayer is exactly what it says: a (thin) database layer. Most of the other database libraries (such as the excellent [Waterline](https://github.com/balderdashy/waterline) work in such a way that they define an "Object type" (call it a model, or constructor function) and create objects of that "type": 
+SimpleDbLayer is exactly what it says: a (thin) database layer. Most of the other database libraries (such as the excellent [Waterline](https://github.com/balderdashy/waterline)) work in such a way that they define an "Object type" (call it a model, or constructor function) and create objects of that "type": 
 
     // This is NOT how SimpleDbLayer works
     var User = Waterline.Collection.extend({ name: { type: 'string' } } );
@@ -338,21 +346,62 @@ Note that for cursor queries `skipHardLimitOnQueries` will be ignored.
 
 The callback is called with parameter `cursor` (the returned cursor), `total` (the number of records returned) and `grandTotal` (the _total_ number of records that satisfy the query without taking into consideration the required ranges).
 
-The `cursor` object has the methods `next()` and `rewind()`. `next()` will call the passed callback with the next available record, or `null` for the last fetched record. `rewind()` will bring the cursor back to the beginning of the returned dataset.
+## Using the cursor
 
-    people.select( {}, { useCursor: true , delete: false }, function( err, cursor ){
-    if( err ){
-      console.log( "ERROR!", err );
-    } else {
-      cursor.next( function( err, record ){
-        if( err ){
-          console.log( "ERROR!", err );
-        } else {
-          console.log( "The first record:" );
-          console.log( record );
-        } 
-      }
+The `cursor` object has the methods `each()`, `next()` and `rewind()`. 
+
+### cursor.each( iterator, cb )
+
+This cursor function will call `iterator( item, done )` for each one of the fetched records. Once all of the records have been iterated, `cb()` will be called.
+The iterator will have access to `item` (the item just fetched) and to `done( err, breakFlag)` (the function to call at the end of each iteration).
+If the iterator calls `done()` with `err` set, then execution will be interrupted and `cb()` will be called with that error set.
+If the iterator calls `done()` with `err` set to `null`, but with `breakFlag` set to `true`, then execution will be called and `cb()` will be called with `err` set to `null.`
+Here is a typical example of cursor usage:
+
+```javascript
+    function cursorExample( done ){
+
+      people.select( {}, { children: true, useCursor: true }, function( err, cursor ){
+        if( err ) return done( err );
+
+        cursor.each(
+
+          // This is the iterator. It will be called for each item, and
+          // it will call `cb()` after each iteration
+          function( item, cb ){
+
+            console.log("ITEM:", item );
+
+            // If item 'Tony' is found, call `cb` with `breakFlag` set to
+            // true, which will effectively interrupt the cycle
+            if( item.name === 'Tony') return cb( null, true );
+
+            cb( null );
+          },
+
+          // This is the function that will be called 1) When all items
+          // have been visited OR 2) The iterator called `cb()` with an
+          // error OR 3) The iterator called `cb()` with no error, but with
+          // `breakFlag` set to true
+          function( err ){
+            if( err ) return done( err );
+
+            console.log('CYCLE IS OVER. Error:', err );
+            done( null );
+          }
+        );
+      });
     }
+````
+Using `each()` is the most convenient way to use a cursor.
+
+### cursor.next( cb )
+
+`next()` will call the passed callback `cb()` with the next available record, or `null` for the last fetched record. 
+
+### cursor.rewind()
+
+`rewind()` will bring the cursor back to the beginning of the returned dataset. You can use `rewind()` within `cursor.each()`, although you run the risk of entering an infinite loop. 
 
 ## Filtering
 
