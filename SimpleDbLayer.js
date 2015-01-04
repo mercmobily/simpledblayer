@@ -73,9 +73,18 @@ var SimpleDbLayer = declare( null, {
     }
 
     // idProperty NEEDS to be required and searchable, and (index-wise) unique
-    options.schema.structure[ options.idProperty ].required = true;
-    options.schema.structure[ options.idProperty ].searchable = true;
-    options.schema.structure[ options.idProperty ].indexOptions = { unique: true };
+    self.schema.structure[ self.idProperty ].required = true;
+    self.schema.structure[ self.idProperty ].searchable = true;
+    self.schema.structure[ self.idProperty ].indexOptions = { unique: true };
+
+    // positionBase elements NEED to be required and searchable
+    self.positionBase.forEach( function( k ){
+      if( typeof( self.schema.structure[ k ] ) === 'undefined' ){
+        throw( new Error("Element in positionBase but not in schema: " + k ) );
+      }
+      self.schema.structure[ k ].required = true;
+      self.schema.structure[ k ].searchable = true;
+    });
 
     // Gets its own variables, avoid using the prototype's by accident
     self.childrenTablesHash = {};
