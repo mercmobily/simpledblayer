@@ -16,14 +16,22 @@ SimpleDbLayer is a module that allows you to connect and query a DB server. It w
 * [X] Write dirtyRecord, dirtyAllRecords, and test the whole clean thing a little more
 * [X] Write documentation for MongoMixin (now it talks a about a git checkout for tests?!?)
 * [X] Implement, and document, cursor.each() (much needed or cursors are hard to use)
-* [ ] Improve range santising function, change the API, only have `skip` and `count`
+
+FINISHING OFF
+* [X] Improve range santising function, change the API, only have `skip` and `count`
 * [ ] Maybe improve simpleDeclare so that each class has "extend", improve its documentation
 * [ ] Change SimpleDbLayer's documentation to use `extend()`
 
-* [ ] Update tests, update NPM so that it will load tests
+TESTS
+* [ ] Update NPM so that it will load tests
+* [ ] Make tests at least run (and fail)
+* [ ] Make tests work
 * [ ] Document which tests are missing
+
+MINIMONGO/TINGO
 * [ ] Maybe use minimongo, if not try to improve https://github.com/sergeyksv/tingodb/issues/41
 
+RELATED (BUT NOT SIMPLEDBLAYER)
 * [ ] Re-implement search filter definition in JsonRestStores, based on an object acting as template
 * [ ] Rewrite documentation for JsonRestStores (the basic module)
 * [ ] Rewrite documentation for JsonRestStores' SimpleDbLayerMixin
