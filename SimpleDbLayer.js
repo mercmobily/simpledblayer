@@ -308,87 +308,24 @@ var SimpleDbLayer = declare( null, {
 
   },
 
-
-  sanitizeRanges: function( ranges, skipHardLimitOnQueries ){
+  // Utility function to make sure that ranges are sane and are
+  // within the limits
+  sanitizeRanges: function( ranges, skipLimit ){
     var self = this
 
+    // Prep work so that all checks are easy and straightforward
+    if( typeof( ranges ) !== 'object' ) ranges = {};
+    var hardLimit =  self.hardLimitOnQueries ? self.hardLimitOnQueries : Infinity; 
+
+    // Set saneRanges up
     var saneRanges = {};
-    if( ! self.hardLimitOnQueries ) var hardLimitOnQueries = 0;
-  
-    saneRanges.from = 0;
-    saneRanges.to = 0;
-    saneRanges.limit = 0;
- 
-    if( typeof( ranges ) === 'object' && ranges !== null ){
+    saneRanges.skip = ranges.skip ? ranges.skip : 0;
+    saneRanges.limit = ranges.limit 
+                       ? ( ranges.limit > hardLimit && ! skipLimit ? hardLimit : ranges.limit )
+                       : 0;
 
-      // Copy values over to saneRanges
-      saneRanges.from = ranges.from || -1;
-      saneRanges.to = ranges.to || -1;
-      saneRanges.limit = ranges.limit || -1;
-
-      var sr = saneRanges;
-
-      // Sorry, no shortcuts here for now. Code will be optimised later
-      // (maybe)
-
-      // Case: Nothing is set
-      if( sr.from === -1 && sr.to === -1 && sr.limit === -1 ){
-         sr.from = 0;
-         sr.to = self.hardLimitOnQueries;
-         sr.limit = self.hardLimitOnQueries;
-
-      // Case: Only "limit" is set
-      // - Set "from" and "to"
-      } else if( sr.from === -1 && sr.to === -1 && sr.limit !== -1 ){
-        sr.from = 0;
-        sr.to = sr.limit - 1;
-       
-      // Case: Only "from" is set
-      // - Set "to" and "limit"
-      } else if( sr.from !== -1 && sr.to === -1 && sr.limit === -1 ){
-        sr.limit =  0;
-        sr.to  = 0;
- 
-      // Case: Only "to" is set
-      // - Set "from" and "limit"
-      } else if( sr.from === -1 && sr.to !== -1 && sr.limit === -1 ){
-        sr.from = 0;
-        sr.limit =  sr.to + 1;
- 
-      // Case: Only "from" and "limit" are set
-      // - Set "to"
-      } else if( sr.from !== -1 && sr.to === -1 && sr.limit !== -1 ){
-        sr.to =  sr.from + sr.limit - 1;
-
-      // Case: Only "from" and "to" are set
-      // - Set "limit"
-      } else if( sr.from !== -1 && sr.to !== -1 && sr.limit === -1 ){
-        sr.limit =  sr.to - sr.from + 1;
-
-      // Case: Only "to" and "limit" are set
-      // - Set "from"
-      } else if( sr.from === -1 && sr.to !== -1 && sr.limit !== -1 ){
-        sr.from = 0;
-      }
-
-      // Make sure "limit" never goes over
-      if(  sr.limit != 0 && sr.from + sr.limit - 1 > sr.to ){
-        sr.limit =  sr.to - sr.from + 1;
-      }
-
-    }
-
-    // Apply hard limit on queries if required to do so. Driver implementations
-    // should only pass 'true' for non-cursor queries, to prevent huge toArray() on
-    // a million records
-    if( ! skipHardLimitOnQueries ){
-      if( self.hardLimitOnQueries && ( saneRanges.limit === 0 || sr.limit > self.hardLimitOnQueries ) ){
-        saneRanges.limit = self.hardLimitOnQueries;
-      }
-    }
-
+    // Return the sane range
     return saneRanges;
-
   },
 
 
