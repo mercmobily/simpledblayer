@@ -33,9 +33,7 @@ TESTS
 
 FINISH OFF SIMPLEDBLAYER
 * [X] Maybe use minimongo, if not try to improve https://github.com/sergeyksv/tingodb/issues/41
-
-TUE/WED
-* [ ] Get rid of MongoWrapper altogether
+* [X] Get rid of MongoWrapper altogether
 * [ ] Make a wish-list for tests, based on doc (all options) and on code (constructor, automatic schema changes)
 * [ ] Make a ticket asking somebody to write the extra tests
 
@@ -64,7 +62,7 @@ Features:
 Limitations:
 
 * It doesn't manage connections. You will have to create a connection to the database and pass it to it. This is due to the module's philosophy of getting in the way as little as possible.
-* `update` and `delete` statements don't accept `sort` and `range` (they will either affect one record, or all of them). This is mainly to make sure that pre-caching of children (join) tables is workable.
+* `update` and `delete` statements don't accept `sort` and `range` (they will either affect one record, or all of them). This is mainly to make sure that pre-caching of children (join/lookup) tables is workable.
 * It doesn't implement Models constructors and object types as many other ORMs do (mainly because SimpleDbLayer is _not_ an ORM, but a thin layer around databases).
 
 Once again, all these features (and limitations) are tailored around the fact that SimpleDbLayer is a module that enables [JsonRestStores](https://github.com/mercmobily/JsonRestStores) to have several (thin) database layers.
