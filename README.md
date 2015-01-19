@@ -19,31 +19,40 @@ SimpleDbLayer is a module that allows you to connect and query a DB server. It w
 
 FINISHING OFF
 * [X] Improve range santising function, change the API, only have `skip` and `count`
-* [ ] Maybe improve simpleDeclare so that each class has "extend", improve its documentation
-* [ ] Change SimpleDbLayer's documentation to use `extend()`
+* [X] Rewrite SimpleDeclare from scratch, since it has huge fundamental flaws and bugs
+* [X] Rewrite documentation for SimpleDeclare
+* [X] Rewrite tests for SimpleDeclare, make tests work
+* [X] Make SimpleDeclare work in safe mode (again)
+* [X] Change SimpleDbLayer's documentation to use `extend()` with SimpleDeclare
 
 TESTS
-* [ ] Update NPM so that it will load tests
-* [ ] Make tests at least run (and fail)
-* [ ] Make tests work
-* [ ] Document which tests are missing
+* [X] Update NPM so that it will load tests
+* [X] Make tests at least run (and fail)
+* [X] Reorganise tests so that they make sense (leave handy functions there)
+* [X] Fix all queries in current tests, make them all pass
 
-MINIMONGO/TINGO
-* [ ] Maybe use minimongo, if not try to improve https://github.com/sergeyksv/tingodb/issues/41
+FINISH OFF SIMPLEDBLAYER
+* [X] Maybe use minimongo, if not try to improve https://github.com/sergeyksv/tingodb/issues/41
+
+TUE/WED
+* [ ] Get rid of MongoWrapper altogether
+* [ ] Make a wish-list for tests, based on doc (all options) and on code (constructor, automatic schema changes)
+* [ ] Make a ticket asking somebody to write the extra tests
 
 RELATED (BUT NOT SIMPLEDBLAYER)
-* [ ] Re-implement search filter definition in JsonRestStores, based on an object acting as template
-* [ ] Rewrite documentation for JsonRestStores (the basic module)
+* [ ] Implement search filter definition in JsonRestStores, based on an object acting as template. Advise only.
+* [ ] Rewrite documentation for JsonRestStores (the basic module), including the filter definition
 * [ ] Rewrite documentation for JsonRestStores' SimpleDbLayerMixin
 * [ ] Rewrite tests for JsonRestStores (the basic module)
 * [ ] Rewrite tests for JsonRestStores' SimpleDbLayerMixin
 * [ ] Adapt existing software to new API (SimpleDbLayerMixin, Hotplate, BookingDojo)
+* [ ] Check that all of the existing software works _AS IS_ with the new implementations
 * [ ] Implement filter in dstore that mimics 100% the querying in JsonRestStores, test everything
 
 Features:
 
 * Complex queries, with nested AND and OR statements, as well as ranges and sorting
-* Full cursor support
+* Full cursor support, including `each()` and a way to break out of `each()`
 * Schema to cast/validate fields, using [simpleschema](https://github.com/mercmobily/simpleschema).
 * It allows 1-level joins in queryes and data fetching; joins are defined right in the table definition.
 * The 1-level join is in the table definition because, using MongoDB, children data will be _preloaded_ and automatically updated. This means that you will be able to fetch the record of a person, with all associated addresses, email addresses, phone numbers, etc. _in one single DB operation_.
@@ -81,7 +90,7 @@ This is _not_ how SimpleDbLayer works: you don't define models, custom methods f
 
 
     // ...Include module, create database connection, etc.
-    var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
+    var DbLayer = SimpleDbLayer.extend( SimpleDbLayerMongo, { db: db } );
 
       var people = new DbLayer( {
 
@@ -129,7 +138,7 @@ In order to use this library, you will need to _mixin_ the basic SimpleDbLayer c
     mongo.MongoClient.connect('mongodb://localhost/someDB', {}, function( err, db ){
 
       // DbLayer will be SimpleDbLayer "enhanced" with DB-Specific SimpleDbLayerMongo
-      var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
+      var DbLayer = SimpleDbLayer.extend( SimpleDbLayerMongo, { db: db } );
 
       // At this point, you can run `var people = new DbLayer( { ... } );
 
@@ -141,7 +150,13 @@ In order to use this library, you will need to _mixin_ the basic SimpleDbLayer c
 
 THe critical line is this:
 
+      var DbLayer = SimpleDbLayer.extend( SimpleDbLayerMongo, { db: db } );
+
+Which can also be written as:
+
       var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
+
+In this case, you need to also require `simpledeclare` like this: `var declare = require('simpledeclare');`. For first-class, close-to-metal OOP in Javascript have a look at [simpledeclare](https://github.com/mercmobily/simpleDeclare), which is what SimpleDbLayer uses.
 
 Here you are creating a constructor function called `DbLayer`, whose prototype will be the merge of `SimpleDbLayer` (the basic functionalities), `SimpleDbLayerMongo` (the db-specific functions) and a plain object `{db: db }` (used to set the `db` attribute to the database connection)..
 
@@ -181,7 +196,7 @@ Please note that you can define these attribute either in the object's prototype
 
 For example, if all of your tables have `idProperty` set to `id`, you can define a layer like so:
 
-      var DbLayerWithId = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db, idProperty: 'id' } );
+      var DbLayerWithId = SimpleDbLayer.extend( SimpleDbLayerMongo, { db: db, idProperty: 'id' } );
 
 Any object created with this constructor will automatically have the attribute `id` set (in the prototype):
 
@@ -212,11 +227,11 @@ They are:
 
 Cursor-less queries on large data sets will likely chew up huge amounts of memory. This is why you can set a hard limit on queries:
 
-      var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db, hardLimitOnQueries: 10 } );
+      var DbLayer = SimpleDbLayer.extend( SimpleDbLayerMongo, { db: db, hardLimitOnQueries: 10 } );
 
 This will imply that each _non-cursor_ query will only ever return 10 items max. You can also set this limit on specific objects by passing hardLimitOnQueries as a constructor parameter:
 
-    var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
+    var DbLayer = SimpleDbLayer.extend( SimpleDbLayerMongo,, { db: db } );
     var people = new DbLayer( {  /* ...layer parameters..., */ hardLimitOnQueries: 10 } );
 
 Note that hardLimtOnQueries only ever applies to non-cursor queries.
@@ -234,11 +249,11 @@ The variable `errorsArray` is an array of objects, where each object has `field`
 
 You can set the constructor used to create the error objects by passing a `SchemaError` parameter when you define the layer:
 
-    var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db, SchemaError: SomeErrorConstructor } );
+    var DbLayer = SimpleDbLayer.extend( SimpleDbLayerMongo, { db: db, SchemaError: SomeErrorConstructor } );
 
 As always, you can also define a the SchemaError constructor when creating the object with `new`:
 
-    var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
+    var DbLayer = SimpleDbLayer.extend( SimpleDbLayerMongo, { db: db } );
     var people = new DbLayer( { /* ...layer parameters..., */ SchemaError: SomeErrorConstructor } );
 
 # Full list of options for SimpleDbLayer
@@ -875,7 +890,6 @@ Here is a practical example of what happens when adding data with nested tables:
 The most important thing to remember is that when you use MongoDB in your backend, you will only perform a single read operation when you fetch a person. The children data is cached within the record. Any update operation will affect the main table, as well as any tables holding cached data.
 
 This means that if the email record with ID 2 (`merc@mobily1.com`) is updated, then the cache for the personId with ID 1 will also be updated so that the email address is correct.
-
 
 # Positioning
 
