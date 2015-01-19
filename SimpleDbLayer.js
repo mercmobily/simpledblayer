@@ -34,7 +34,8 @@ var SimpleDbLayer = declare( null, {
   nested: [],
   hardLimitOnQueries: 0,
   extraIndexes: [],
-   
+  indexBase: [],
+
   // Fields that will be redefined in constructor, here for aesthetic reasons 
   childrenTablesHash: {},
   lookupChildrenTablesHash: {},
@@ -50,16 +51,20 @@ var SimpleDbLayer = declare( null, {
 
     options = options || {};
 
-    // Safely mixin values. Note that functions become new object methods,
-    // where this.inherited(arguments) actually works.
+    // Mixin values from constructor.
     for( var k in options ){
-      var option = options[ k ];
-      if( typeof( option ) === 'function' ){
-        self.redefineMethod( k, option );
-      } else {
-        self[ k ] = option;
-      }
+      self[ k ] = options[ k ];
     }
+
+    // Note: there is no concept of "safeMixin" since redefineMethod() no longer
+    // exists
+    //  var option = options[ k ];
+    //  if( typeof( option ) === 'function' ){
+    //    self.redefineMethod( k, option );
+    //  } else {
+    //    self[ k ] = option;
+    //  }
+    //}
 
     // Make sure 'table', 'schema', 'db' exist in the object *somehow*
     [ 'table', 'schema', 'idProperty', 'db' ].forEach( function( k ){
@@ -165,12 +170,14 @@ var SimpleDbLayer = declare( null, {
       // converted to a proper table, now that they are all instantiated.
       // The constructor will have a `registry` attribute, with the list of table
       // already instantiated
+      var t = childNestedParams.layer.table;
       if( typeof( childNestedParams.layer ) === 'string' ){
+        var t = childNestedParams.layer;
         childNestedParams.layer = self.constructor.registry[ childNestedParams.layer ];
       }
 
       if( !childNestedParams.layer ){
-        throw( new Error("Layer requested in nested parameter not found") );
+        throw( new Error("Layer requested in nested parameter not found: " + t ) );
       }
 
       var childLayer = childNestedParams.layer;
@@ -315,20 +322,18 @@ var SimpleDbLayer = declare( null, {
 
     // Prep work so that all checks are easy and straightforward
     if( typeof( ranges ) !== 'object' ) ranges = {};
-    var hardLimit =  self.hardLimitOnQueries ? self.hardLimitOnQueries : Infinity; 
+    var hardLimit =  self.hardLimitOnQueries || Infinity; 
 
     // Set saneRanges up
     var saneRanges = {};
     saneRanges.skip = ranges.skip ? ranges.skip : 0;
     saneRanges.limit = ranges.limit 
                        ? ( ranges.limit > hardLimit && ! skipLimit ? hardLimit : ranges.limit )
-                       : 0;
+                       : hardLimit === Infinity ? 0 : hardLimit;
 
     // Return the sane range
     return saneRanges;
   },
-
-
 
   select: function( filters, options, cb ){
 
@@ -452,10 +457,10 @@ var SimpleDbLayer = declare( null, {
 
 
 // Initialise all layers, creating relationship hashes
-SimpleDbLayer.initLayers = function( SimpleDbLayer ){
+SimpleDbLayer.initLayers = function( ){
 
   var Layer = this;
-
+  
   Object.keys( Layer.registry ).forEach( function( key ){
     var layer = Layer.registry[ key ];
     layer._makeTablesHashes();
@@ -463,6 +468,8 @@ SimpleDbLayer.initLayers = function( SimpleDbLayer ){
 }
 // Get layer from the class' registry
 SimpleDbLayer.getLayer = function( tableName ){
+  var Layer = this;
+
   if( typeof( Layer.registry ) === 'undefined' ) return undefined;
   return Layer.registry[ tableName ];
 }
