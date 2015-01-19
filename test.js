@@ -1630,15 +1630,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             });
           };
 
-
-
-
-
           function deleteSingleConfig( cb ){
 
             console.log("Running deleteSingleConfig...");
 
-            console.log("MARK");
             configR.delete( { name: 'eq', args: [ 'id', data.c2.id ] }, { multi: false }, function( err ){
 
               test.ifError( err ); if( err ) return test.done();
