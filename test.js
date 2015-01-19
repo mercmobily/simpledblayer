@@ -1,4 +1,3 @@
-
 /*
 Copyright (C) 2013 Tony Mobily
 
@@ -109,47 +108,32 @@ var populateCollection = function( data, collection, cb ){
   var functions = [];
 
   // Populate the database
-  data.forEach( function( datum ){
-
-    functions.push( function( done ){
+  async.eachSeries(
+    data,
+    function( datum, cb ){
       collection.insert( datum, function( err ){
-        if( err ){
-          cb( err );
-        } else{
-          done( null );
-        }
+        if( err ) return cb( err );
+        cb( null );
       })
-    })
-
-  })
-
-  async.series( functions, function( err, res ){
-    if( err ){
-      cb( err );
-    } else {
+    },
+    function( err ){
+      if( err ) return cb( err );
       cb( null );
     }
-  });
+  );
 }
 
 
 var clearAndPopulateTestCollection = function( g, cb ){
   
   g.people.delete( { }, { multi: true }, function( err ){
-   if( err ){
-      cb( err );
-    } else {
+    if( err ) return cb( err );
 
-      populateCollection( peopleData, g.people, function( err ){
-        if( err ){
-          cb( err );
-        } else {
+    populateCollection( peopleData, g.people, function( err ){
+      if( err ) return cb( err );
 
-          cb( null );
-
-        }
-      })
-    }
+      cb( null );
+    });
   })
 }
 
@@ -160,7 +144,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
   var startup = function( test ){
     var self = this;
-
 
     process.on('uncaughtException', function(err) {
       console.error(err.stack);
@@ -177,13 +160,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       g.driver = {};
       g.driver.db = db;
       g.driver.DriverMixin = DriverMixin;
-      g.driver.SchemaMixin = SchemaMixin;
+      g.driver.SchemaMixin = SchemaMixin; // Note: this will be ignored for now
 
-     
-      g.commonPeopleSchema = new SchemaMixin( {
+      g.commonPeopleSchema = new g.driver.SchemaMixin( {
         name   : { type: 'string', searchable: true, sortable: true },
-        surname: { type: 'string', searchable: true, sortable: true },
-        age    : { type: 'number', searchable: true, sortable: true, required: true },
+        surname: { type: 'string', searchable: true, sortable: true, required: true },
+        age    : { type: 'number', searchable: true, sortable: true },
       });
 
       test.done();
@@ -213,7 +195,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       try { 
         g.Layer = declare( [ SimpleDbLayer, g.driver.DriverMixin ], { db: g.driver.db });
 
-        g.people = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'name' } );
+        g.people = new g.Layer( { table: 'people', schema: g.commonPeopleSchema, idProperty: 'name' } );
 		  	test.ok( g.people );
 
       } catch( e ){
@@ -226,19 +208,19 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
       // Test that it works also by passing the db in the constructor
       var LayerNoDb = declare( [ SimpleDbLayer, g.driver.DriverMixin ] );
-      var peopleDb = new LayerNoDb( 'people', { schema: g.commonPeopleSchema, idProperty: 'name' } , g.driver.db );
+      var peopleDb = new LayerNoDb( { table: 'peopleDb', schema: g.commonPeopleSchema, idProperty: 'name', db: g.driver.db } );
       test.ok( peopleDb );
       test.ok( peopleDb.db === g.people.db );
 
-
       // Test that passing `db` will override whatever was in the prototype
-      var fakeDb = { collection: function(){ return "some" } };
-      var peopleRewriteDb = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'name' }, fakeDb );
+      // This db will work both for miniMongo and for the real mongo
+      var fakeDb = { collection: function(){ return "some" }, addCollection: function() { return "more" } };
+      var peopleRewriteDb = new g.Layer( { table: 'peopleRewriteDb', schema: g.commonPeopleSchema, idProperty: 'name', db: fakeDb } );
       test.ok( fakeDb === peopleRewriteDb.db );
 
       // Test that not passing `db` anywhere throws
       test.throws( function(){        
-        new LayerNoDb( 'people', { schema: g.commonPeopleSchema, idProperty: 'name' } );
+        new LayerNoDb( { table: 'peopleNoDb', schema: g.commonPeopleSchema, idProperty: 'name' } );
       }, undefined, "Constructing a collection without definind DB in prototype or constructions should fail");
 
       test.done();
@@ -248,12 +230,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
     "insert with returnRecord": function( test ){
 
       g.people.delete( { }, { multi: true }, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
         var person = { name: "Joe", surname: "Mitchell", age: 48 };
         g.people.insert( person, { returnRecord: true }, function( err, personReturned ){
-          test.ifError( err );
+          test.ifError( err ); if( err ) return test.done();
           test.deepEqual( person, personReturned, "Mismatch between what was written onto the DB and what returned from the DB" );
-
           test.done();
         });
       });
@@ -263,11 +244,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
     "insert without returnRecord": function( test ){
 
       g.people.delete( { }, { multi: true }, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
 
         var person = { name: "Joanna", surname: "Mitchell", age: 45 };
         g.people.insert( person, { returnRecord: false }, function( err, personReturned ){
-          test.ifError( err );
+          test.ifError( err ); if( err ) return test.done();
           test.equal( undefined, personReturned, "If returnRecord is false, the second callback parameter must be undefined" );
           test.done();
         });
@@ -279,19 +260,25 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
     "selects, equality" : function( test ){
 
       clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
-          g.people.select( { conditions: { and: [ { field: 'name', type: 'is', value: 'Tony' }, { field: 'surname', type: 'is', value: 'Mobily' }, { field: 'age', type: 'is', value: 37 } ] } }, function( err, results, total ){ 
+        test.ifError( err ); if( err ) return test.done();
 
-          test.ifError( err );
+        g.people.select( { conditions: 
+          { name: 'and', args: [
+            { name: 'eq', args: [ 'name', 'Tony' ] },
+            { name: 'eq', args: [ 'surname', 'Mobily' ] },
+            { name: 'eq', args: [ 'age', 37 ] },
+          ] }
+        }, function( err, results, total ){ 
+                  
+          test.ifError( err ); if( err ) return test.done();
 
-          var r = [ { name: 'Tony',      surname: 'Mobily',  age: 37 } ];
+          var r = [ { name: 'Tony', surname: 'Mobily',  age: 37 } ];
 
           test.equal( total, 1 );
           compareCollections( test, results, r );
           
           test.done();
         })
-
 
       })
     },
@@ -301,13 +288,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         var self = this;
 
       clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
 
-
-        g.people.select( { conditions: { and: [ { field: 'surname', type: 'startsWith', value: 'Mob' } ] } }, function( err, results, total ){
-          test.ifError( err );
-
-          
+        g.people.select( { conditions: { name: 'startsWith', args: [ 'surname', 'Mob' ] } }, function( err, results, total ){
+          test.ifError( err ); if( err ) return test.done();
 
           var r = [
                     { name: 'Tony',      surname: 'Mobily',     age: 37 },
@@ -318,8 +302,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           test.equal( total, 3 );
           compareCollections( test, results, r );
 
-          g.people.select( { conditions: { and: [ { field: 'surname', type: 'endsWith', value: 'nor' } ]  } }, function( err, results, total ){
-            test.ifError( err );
+          g.people.select( { conditions: { name: 'endsWith', args: [ 'surname', 'nor' ] } }, function( err, results, total ){
+            test.ifError( err ); if( err ) return test.done();
 
             var r = [
               { name: 'Sara',  surname: 'Connor', age: 14 },
@@ -328,8 +312,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             compareCollections( test, results, r );
             test.equal( total, 1 );
 
-            g.people.select( { conditions: { and: [ { field: 'surname', type: 'contains', value: 'on' } ] } }, function( err, results, total ){
-              test.ifError( err );
+            g.people.select( { conditions: { name: 'contains', args: [ 'surname', 'on' ] } }, function( err, results, total ){
+              test.ifError( err ); if( err ) return test.done();
 
               var r = [
                 { name: 'Sara',  surname: 'Connor', age: 14 },
@@ -349,10 +333,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
     "selects, comparisons": function( test ){
 
       clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
 
-        g.people.select( { conditions: { and: [ { field: 'name', type: 'gt', value: 'M' } ] } }, function( err, results, total ){
-          test.ifError( err );
+        g.people.select( { conditions: { name: 'gt', args: [ 'name', 'M' ] } }, function( err, results, total ){
+          test.ifError( err ); if( err ) return test.done();
 
           var r = [
             { name: 'Tony',      surname: 'Mobily',     age: 37 },
@@ -362,8 +346,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           compareCollections( test, results, r );
           test.equal( total, 2 );
 
-          g.people.select( { conditions: { and: [ { field: 'age', type: 'gt', value: 22 } ] } }, function( err, results, total ){
-            test.ifError( err );
+          g.people.select( { conditions: { name: 'gt', args: [ 'age', 22 ] } }, function( err, results, total ){
+            test.ifError( err ); if( err ) return test.done();
 
             var r = [
               { name: 'Tony',      surname: 'Mobily',     age: 37 },
@@ -374,8 +358,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             test.equal( total, 2 );
 
 
-            g.people.select( { conditions: { and: [ { field: 'age', type: 'gte', value: 22 } ] } }, function( err, results, total ){
-              test.ifError( err );
+            g.people.select( { conditions: { name: 'gte', args: [ 'age', 22 ] } }, function( err, results, total ){
+              test.ifError( err ); if( err ) return test.done();
 
               var r = [
                 { name: 'Chiara',    surname: 'Mobily',     age: 22 },
@@ -387,8 +371,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               test.equal( total, 3 );
 
 
-              g.people.select( { conditions: { and: [ { field: 'age', type: 'gt', value: 22 }, { field: 'age', type: 'lt', value: 60 }] } }, function( err, results, total ){
-                test.ifError( err );
+              g.people.select( { conditions: { name: 'and', args: [
+                { name: 'gt', args: [ 'age', 22 ] },                
+                { name: 'lt', args: [ 'age', 60 ] },
+              ] } }, function( err, results, total ){
 
                 var r = [
                  { name: 'Tony',      surname: 'Mobily',     age: 37 },
@@ -411,45 +397,45 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
     "selects, ranges and limits": function( test ){
      
        clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
         g.people.select( { ranges: { limit: 1 } }, function( err, results, total, grandTotal ){
-          test.ifError( err );
+          test.ifError( err ); if( err ) return test.done();
 
           test.equal( total, 1 );
           test.equal( grandTotal, 4 );
 
           g.people.select( { ranges: { limit: 2 } }, function( err, results, total ){
-            test.ifError( err );
+            test.ifError( err ); if( err ) return test.done();
 
             test.equal( total, 2 );
             test.equal( grandTotal, 4 );
 
-            g.people.select( { ranges: { from: 1, to: 3 } }, function( err, results, total ){
-              test.ifError( err );
+            g.people.select( { ranges: { skip: 1, limit: 3 } }, function( err, results, total ){
+              test.ifError( err ); if( err ) return test.done();
 
               test.equal( total, 3 );
               test.equal( grandTotal, 4 );
 
-              g.people.select( { ranges: {  to: 2 } }, function( err, results, total ){
-                test.ifError( err );
+              g.people.select( { ranges: { limit: 3 } }, function( err, results, total ){
+                test.ifError( err ); if( err ) return test.done();
 
                 test.equal( total, 3 );
                 test.equal( grandTotal, 4 );
 
-                g.people.select( { ranges: { from: 1 } }, function( err, results, total ){
-                  test.ifError( err );
+                g.people.select( { ranges: { skip: 1 } }, function( err, results, total ){
+                  test.ifError( err ); if( err ) return test.done();
 
                   test.equal( total, 3 );;
                   test.equal( grandTotal, 4 );
 
-                  g.people.select( { ranges: { to: 4, limit: 2 } }, function( err, results, total ){
-                    test.ifError( err );
+                  g.people.select( { ranges: { limit: 2 } }, function( err, results, total ){
+                    test.ifError( err ); if( err ) return test.done();
 
                     test.equal( total, 2 );
                     test.equal( grandTotal, 4 );
 
-                    g.people.select( { ranges: { from: 1, to: 4, limit: 2 } }, function( err, results, total ){
-                      test.ifError( err );
+                    g.people.select( { ranges: { skip: 1, limit: 2 } }, function( err, results, total ){
+                      test.ifError( err ); if( err ) return test.done();
 
                       test.equal( total, 2 );
                       test.equal( grandTotal, 4 );
@@ -473,10 +459,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
     "selects, sort": function( test ){
 
       clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
 
         g.people.select( { sort: { name: 1 } }, function( err, results, total ){
-          test.ifError( err );
+          test.ifError( err ); if( err ) return test.done();
 
           var r =  [
             { name: 'Chiara',    surname: 'Mobily',     age: 22 },
@@ -490,7 +476,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
 
           g.people.select( { sort: { surname: 1, name: 1 } }, function( err, results, total ){
-            test.ifError( err );
+            test.ifError( err ); if( err ) return test.done();
 
             var r =  [
               { name: 'Sara',      surname: 'Connor',     age: 14 },
@@ -503,7 +489,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             test.equal( total, 4 );
 
             g.people.select( { ranges: { limit: 2 },  sort: { surname: -1, age: -1 } }, function( err, results, total ){
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               var r =  [
                 { name: 'Daniela',   surname: 'Mobily',     age: 64 },
@@ -526,10 +512,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
     "selects, cursor": function( test ){
 
       clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
 
         g.people.select( { sort: { name: 1 } }, { useCursor: true }, function( err, cursor, total ){
-          test.ifError( err );
+          test.ifError( err ); if( err ) return test.done();
  
           test.notEqual( cursor, null );
           test.notEqual( cursor, undefined );
@@ -542,23 +528,23 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             { name: 'Tony',      surname: 'Mobily',     age: 37 },
           ];
           cursor.next( function( err, person ){
-            test.ifError( err );
+            test.ifError( err ); if( err ) return test.done();
             test.deepEqual( person, r[ 0 ] );
   
             cursor.next( function( err, person ){
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
               test.deepEqual( person, r[ 1 ] );
   
               cursor.next( function( err, person ){
-                test.ifError( err );
+                test.ifError( err ); if( err ) return test.done();
                 test.deepEqual( person, r[ 2 ] );
   
                 cursor.next( function( err, person ){
-                  test.ifError( err );
+                  test.ifError( err ); if( err ) return test.done();
                   test.deepEqual( person, r[ 3 ] );
   
                   cursor.next( function( err, person ){
-                    test.ifError( err );
+                    test.ifError( err ); if( err ) return test.done();
                     test.deepEqual( person, null );
   
                     test.done();
@@ -571,16 +557,88 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       })
     },
 
+    "selects, cursor (using each)": function( test ){
 
+      clearAndPopulateTestCollection( g, function( err ){
+        test.ifError( err ); if( err ) return test.done();
+
+        g.people.select( { sort: { name: 1 } }, { useCursor: true }, function( err, cursor, total ){
+          test.ifError( err ); if( err ) return test.done();
+ 
+          test.notEqual( cursor, null );
+          test.notEqual( cursor, undefined );
+          test.equal( total, 4 );
+          
+          var r =  [
+            { name: 'Chiara',    surname: 'Mobily',     age: 22 },
+            { name: 'Daniela',   surname: 'Mobily',     age: 64 },
+            { name: 'Sara',      surname: 'Connor',     age: 14 },
+            { name: 'Tony',      surname: 'Mobily',     age: 37 },
+          ];
+          var e = [];
+
+          cursor.each(
+            function( item, cb ){
+              e.push( item );
+              cb( null );
+            },
+            function( err ){
+            test.ifError( err ); if( err ) return test.done();
+              compareCollections( test, r, e );
+
+              test.done();
+            }
+          );
+        });
+
+      })
+    },
+
+
+    "selects, cursor (using each, interrupting it)": function( test ){
+
+      clearAndPopulateTestCollection( g, function( err ){
+        test.ifError( err ); if( err ) return test.done();
+
+        g.people.select( { sort: { name: 1 } }, { useCursor: true }, function( err, cursor, total ){
+          test.ifError( err ); if( err ) return test.done();
+ 
+          test.notEqual( cursor, null );
+          test.notEqual( cursor, undefined );
+          test.equal( total, 4 );
+          
+          var r =  [
+            { name: 'Chiara',    surname: 'Mobily',     age: 22 },
+            { name: 'Daniela',   surname: 'Mobily',     age: 64 },
+          ];
+          var e = [];
+
+          cursor.each(
+            function( item, cb ){
+              e.push( item );
+              if( item.name === 'Daniela' ) return cb( null, true );
+              cb( null );
+            },
+            function( err ){
+            test.ifError( err ); if( err ) return test.done();
+              compareCollections( test, r, e );
+
+              test.done();
+            }
+          );
+        });
+
+      })
+    },
 
 
     "deletes": function( test ){
     
       clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
 
         g.people.select( { },  function( err, results, total ){
-          test.ifError( err );
+          test.ifError( err ); if( err ) return test.done();
   
           var r =  [
             { name: 'Chiara',    surname: 'Mobily',     age: 22 },
@@ -591,20 +649,19 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
           compareCollections( test, results, r );
           test.equal( total, 4 );
-
-          
-          g.people.delete( { conditions: { and: [ { field: 'name', type: 'is', value: 'DOES NOT EXIST' } ] }  },  function( err, howMany ){
-            test.ifError( err );
+                      
+          g.people.delete( { name: 'eq', args: [ 'name', 'STOCAZZO' ] },  function( err, howMany ){
+            test.ifError( err ); if( err ) return test.done();
  
             test.equal( howMany, 0 );
 
-            g.people.delete( { conditions: { and: [ { field: 'name', type: 'is', value: 'Tony' } ] }  },  function( err, howMany ){
-              test.ifError( err );
+            g.people.delete( { name: 'eq', args: [ 'name', 'Tony' ] },  function( err, howMany ){
+              test.ifError( err ); if( err ) return test.done();
    
               test.equal( howMany, 1 );
   
               g.people.select( { },  function( err, results, total ){
-                test.ifError( err );
+                test.ifError( err ); if( err ) return test.done();
     
                 var r =  [
                   { name: 'Chiara',    surname: 'Mobily',     age: 22 },
@@ -615,14 +672,13 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 compareCollections( test, results, r );
                 test.equal( total, 3 );
 
-  
-                g.people.delete( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Mobily' } ] }  }, { multi: true }, function( err, howMany){
-                  test.ifError( err );
+                g.people.delete( { name: 'eq', args: [ 'surname', 'Mobily' ] }, { multi: true }, function( err, howMany){
+                  test.ifError( err ); if( err ) return test.done();
     
                   test.equal( howMany, 2 );
   
                   g.people.select( { },  function( err, results, total ){
-                    test.ifError( err );
+                    test.ifError( err ); if( err ) return test.done();
     
                     var r =  [
                       { name: 'Sara',      surname: 'Connor',     age: 14 },
@@ -631,31 +687,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     compareCollections( test, results, r );
                     test.equal( total, 1 );
   
-                    clearAndPopulateTestCollection( g, function( err ){
-                      test.ifError( err );
-  
-                      g.people.delete( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Mobily' } ] }, sort: { name: -1 }   }, function( err, howMany ){
-                        test.ifError( err );
-    
-                        test.deepEqual( howMany, 1 );
-  
-                        g.people.select( { },  function( err, results, total ){
-                          test.ifError( err );
-   
-                          var r =  [
-                            { name: 'Chiara',    surname: 'Mobily',     age: 22 },
-                            //{ name: 'Tony',      surname: 'Mobily',     age: 37 },
-                            { name: 'Sara',      surname: 'Connor',     age: 14 },
-                            { name: 'Daniela',   surname: 'Mobily',     age: 64 },
-                          ];
-
-                          compareCollections( test, results, r );
-                          test.equal( total, 3 );
-   
-                          test.done();
-                        });
-                      });
-                    })
+                    test.done();
                   })
                 });
               })
@@ -668,46 +700,79 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
     "select, or filters": function( test ){
       clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
 
 
-        g.people.select( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Mobily' } ], or: [ { field: 'age', type: 'is', value: 37 }, { field: 'age', type: 'is', value: 22 }  ]  } }, function( err, results, total ){
-          test.ifError( err );
+        g.people.select( { conditions:
+          { name: 'and', args: [
+            { name: 'eq', args: [ 'surname', 'Mobily' ] },
+            { name: 'or', args: [
+              { name: 'eq', args: [ 'age', 22 ] },
+              { name: 'eq', args: [ 'age', 37 ] },            
+            ] },
+          ] }
+        }, function( err, results, total ){
+
+          test.ifError( err ); if( err ) return test.done();
 
           var r = [
-                    { name: 'Tony',      surname: 'Mobily',     age: 37 },
-                    { name: 'Chiara',    surname: 'Mobily',     age: 22 },
-                  ];
+            { name: 'Tony',      surname: 'Mobily',     age: 37 },
+            { name: 'Chiara',    surname: 'Mobily',     age: 22 },
+          ];
 
           test.equal( total, 2 );
           compareCollections( test, results, r );
 
-          test.done();
+          g.people.select( { conditions:
+            { name: 'or', args: [
+              { name: 'eq', args: [ 'name', 'Tony' ] },
+              { name: 'eq', args: [ 'name', 'Chiara' ] },
+            ] }
+          }, function( err, results, total ){
+
+            var r = [
+              { name: 'Tony',   surname: 'Mobily', age: 37 },
+              { name: 'Chiara', surname: 'Mobily', age: 22 },
+            ];
+
+            test.equal( total, 2 );
+            compareCollections( test, results, r );
+
+            test.done();
+          });
         });
       });
     },
 
-    "select, hardLimitOnQuery and grandTotal": function( test ){
+    "select, hardLimitOnQuery": function( test ){
       clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
 
-        var people2 = new g.Layer( 'people', { schema: g.commonPeopleSchema, idProperty: 'name' } );
-        people2.hardLimitOnQueries = 2;
+        var people2 = new g.Layer( { schema: g.commonPeopleSchema, idProperty: 'name', table: 'people2' } );
 
-        people2.select( { sort: { age: 1 } }, function( err, results, total, grandTotal ){
-          test.ifError( err );
+        // Delete data, and polulate collection
+        people2.delete( { }, { multi: true }, function( err ){
+          if( err ) return cb( err );
+          populateCollection( peopleData, people2, function( err ){
+            if( err ) return cb( err );
 
-          var r = 
+            people2.hardLimitOnQueries = 2;
 
-[ { name: 'Sara', surname: 'Connor', age: 14 },
-  { name: 'Chiara', surname: 'Mobily', age: 22 } ]
+            people2.select( { sort: { age: 1 } }, function( err, results, total, grandTotal ){
+              test.ifError( err ); if( err ) return test.done();
 
-          ;
+              var r = 
+                [ { name: 'Sara', surname: 'Connor', age: 14 },
+                  { name: 'Chiara', surname: 'Mobily', age: 22 } ]
+              ;
 
-          test.equal( total, 2 );
-          compareCollections( test, results, r );
+              test.equal( total, 2 );
+              test.equal( grandTotal, 4 );
+              compareCollections( test, results, r );
 
-          test.done();
+              test.done();
+            });
+          });
         });
       });
     },
@@ -715,11 +780,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
     "select, case insensitive": function( test ){
       clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
 
 
-        g.people.select( { conditions: { and: [ { field: 'surname', type: 'is', value: 'MObILy' } ] } }, function( err, results, total ){
-          test.ifError( err );
+        g.people.select( { conditions: { name: 'eq', args: [ 'surname', 'MObILy' ] } }, function( err, results, total ){
+          test.ifError( err ); if( err ) return test.done();
 
           var r = [
                     { name: 'Tony',      surname: 'Mobily',     age: 37 },
@@ -731,8 +796,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           test.equal( total, 3 );
           compareCollections( test, results, r );
 
-          g.people.select( { conditions: { and: [ { field: 'surname', type: 'contains', value: 'ObI' } ] } }, function( err, results, total ){
-            test.ifError( err );
+          g.people.select( { conditions: { name: 'contains', args: [ 'surname', 'ObI' ] } }, function( err, results, total ){
+            test.ifError( err ); if( err ) return test.done();
 
             test.equal( total, 3 );
             compareCollections( test, results, r );
@@ -748,14 +813,16 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
     "updates": function( test ){
       clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
 
-        g.people.update( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Mobily' } ] } }, { surname: 'Tobily' }, { multi: true }, function( err, howMany ){
-          test.ifError( err );
+        g.people.update( { name: 'eq', args: [ 'surname', 'Mobily' ] }, { surname: 'Tobily' }, { multi: true }, function( err, howMany ){
+          test.ifError( err ); if( err ) return test.done();
 
           test.deepEqual( howMany, 3 );
 
           g.people.select( { },  function( err, results, total ){
+            test.ifError( err ); if( err ) return test.done();
+
             var r =  [
               { name: 'Chiara',    surname: 'Tobily',     age: 22 },
               { name: 'Tony',      surname: 'Tobily',     age: 37 },
@@ -763,13 +830,18 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               { name: 'Daniela',   surname: 'Tobily',     age: 64 },
             ];
 
+
             compareCollections( test, results, r );
             test.equal( total, 4 );
 
-            g.people.update( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Tobily' } ] }, sort: { name: -1 }  }, { surname: 'Lobily' }, function( err, howMany ){
+            g.people.update( { name: 'eq', args: [ 'name', 'Tony' ] }, { surname: 'Lobily' }, function( err, howMany ){
+              test.ifError( err ); if( err ) return test.done();
+
               test.deepEqual( howMany, 1 );
 
               g.people.select( { },  function( err, results, total ){
+                test.ifError( err ); if( err ) return test.done();
+
                 var r =  [
                   { name: 'Chiara',    surname: 'Tobily',     age: 22 },
                   { name: 'Tony',      surname: 'Lobily',     age: 37 },
@@ -780,57 +852,40 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 compareCollections( test, results, r );
                 test.equal( total, 4 );
 
-
-                g.people.update( { conditions: { and: [ { field: 'name', type: 'is', value: 'Tony' } ] } }, { name: 'Tony', age: 38 }, { deleteUnsetFields: true }, function( err, howMany ){
+                g.people.update( { name: 'eq', args: [ 'name', 'Tony' ] }, { name: 'Tony', surname: 'Sobily' }, { deleteUnsetFields: true }, function( err, howMany ){
+                  
+                  test.ifError( err ); if( err ) return test.done();
 
                   test.equal( howMany, 1 );
 
-                  g.people.select( { conditions: { and: [ { field: 'name', type: 'is', value: 'Tony' } ] } },  function( err, results, total ){
+                  g.people.select( { conditions: { name: 'eq', args: [ 'name', 'Tony' ] } },  function( err, results, total ){
+                    test.ifError( err ); if( err ) return test.done();
 
                     test.equal( total, 1 );
 
-                    compareItems( test, results[ 0 ], { age: 38, name: "Tony" } );
+                    compareItems( test, results[ 0 ], { name: "Tony", surname: 'Sobily' } );
 
                     test.done();
                   })
                 });
               })
-
-
             });
           })
         });
       })
     },
 
-    /*
-    "updates do not unset required fields": function( test ){
-      clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
-
-        test.throws(
-          function(){
-            g.people.update( { conditions: { and: [ { field: 'surname', type: 'is', value: 'Mobily' } ] } }, { surname: 'Tobily' }, { multi: true, deleteUnsetFields: true }, function( err, howMany ){
-              if( err ) throw( err );
-            });
-          },
-          Error,
-          "should throw as passed 'deleteUnsetFields: true' and didn't pass all required fields"
-        );
-      })
-    },
-    */
-
     "refs": function( test ){
       clearAndPopulateTestCollection( g, function( err ){
-        test.ifError( err );
+        test.ifError( err ); if( err ) return test.done();
 
-        var peopleR = new g.Layer( 'peopleR', {
+        var peopleR = new g.Layer( {
+          table: "peopleR",
           schema: new g.driver.SchemaMixin( {
-            id      : { type: 'id', required: true, searchable: true, permutePrefix: true },
-            name    : { type: 'string', searchable: true, sortable: true, permute: true },
-            surname : { type: 'string', searchable: true, sortable: true, permute: true },
-            age     : { type: 'number', searchable: true, sortable: true, permute: true },
+            id      : { type: 'id' },
+            name    : { type: 'string', searchable: true },
+            surname : { type: 'string', searchable: true },
+            age     : { type: 'number', searchable: true },
 
             configId: { type: 'id', required: true } ,
             motherId: { type: 'id', required: false, searchable: true },
@@ -847,14 +902,14 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             { 
               layer: 'configR',
-              join: { 'id': 'configId' }, 
+              layerField: 'id', 
               localField: 'configId',
               type: 'lookup',
             },
 
             { 
               layer: 'peopleR',
-              join: { 'id': 'motherId' }, 
+              layerField: 'id', 
               localField: 'motherId',
               type: 'lookup',
             },
@@ -862,14 +917,15 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           ]
         });
  
-        var addressesR = new g.Layer( 'addressesR', {
+        var addressesR = new g.Layer( {
+          table: 'addressesR',
           schema: 
             new g.driver.SchemaMixin( {
-              id       : { type: 'id', required: true, searchable: true },
-              personId : { type: 'id', required: true, searchable: true, permutePrefix: true },
-              street   : { type: 'string', searchable: true, permute: true },
-              city     : { type: 'string', searchable: true, permute: true },
-              configId : { type: 'id', required: false },
+              id       : { type: 'id' },
+              personId : { type: 'id', required: true, searchable: true },
+              configId : { type: 'id', required: false }, 
+              street   : { type: 'string', searchable: true },
+              city     : { type: 'string', searchable: true },
             }),
           idProperty: 'id',
           positionField: 'position',
@@ -879,24 +935,25 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               layer: 'configR',
               type: 'lookup',
               localField: 'configId',
-              join: { id: 'configId' }, 
+              layerField: 'id',
             },
 
            { 
               layer: 'peopleR',
               type: 'lookup',
               localField: 'personId',
-              join: { id: 'personId' }, 
+              layerField: 'id', 
             },
 
           ]
         });
 
-        var configR = new g.Layer( 'configR', {
+        var configR = new g.Layer( {
+          table: 'configR',
           schema: new g.driver.SchemaMixin( {
-            id       : { type: 'id', required: true, searchable: true },
-            configField  : { type: 'string', searchable: true, sortable: true, permute: true },
-            configValue  : { type: 'string', searchable: true, sortable: true, permute: true },
+            id       : { type: 'id' },
+            configField  : { type: 'string', searchable: true },
+            configValue  : { type: 'string', searchable: true },
           }),
           idProperty: 'id',
         });
@@ -948,7 +1005,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         prepareGround( function(){
 
           console.log("INITIALISING LAYERS..." );
-          SimpleDbLayer.initLayers();
+          g.Layer.initLayers();
  
           // Insert normal record (configR)
 
@@ -961,14 +1018,14 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               configValue: 'C1 - Config Value'
             };
             g.driver.SchemaMixin.makeId( data.c1, function( err, id ) {
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
               data.c1.id = id;
 
               configR.insert( data.c1, function( err ){
                 if( err ) return cb( err );
 
                 configR.select( { },  function( err, results, total ){
-                  test.ifError( err );
+                  test.ifError( err ); if( err ) return test.done();
     
                   test.equal( total, 1 );
                   compareCollections( test, [ data.c1 ], results );
@@ -988,14 +1045,14 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               configValue: 'C2 - Config Value'
             };
             g.driver.SchemaMixin.makeId( data.c2, function( err, id ) {
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
               data.c2.id = id;
 
               configR.insert( data.c2, function( err ){
                 if( err ) return cb( err );
 
                 configR.select( { },  function( err, results, total ){
-                  test.ifError( err );
+                  test.ifError( err ); if( err ) return test.done();
     
                   test.equal( total, 2 );
                   compareCollections( test, [ data.c1, data.c2 ], results );
@@ -1019,7 +1076,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               configId: data.c1.id
             };
             g.driver.SchemaMixin.makeId( data.p2, function( err, id ) {
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               data.p1.id = id;
 
@@ -1027,7 +1084,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 if( err ) return cb( err );
 
                 peopleR.select( { },  { children: true }, function( err, results, total ){
-                  test.ifError( err );
+                  test.ifError( err ); if( err ) return test.done();
    
                   // Only one result came back
                   test.equal( total, 1 );
@@ -1059,7 +1116,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               configId: data.c1.id
             };
             g.driver.SchemaMixin.makeId( data.a1, function( err, id ) {
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
               data.a1.id = id;
 
 
@@ -1067,7 +1124,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 if( err ) return cb( err );
 
                 addressesR.select( { },  { children: true }, function( err, results, total ){
-                  test.ifError( err );
+                  test.ifError( err ); if( err ) return test.done();
    
                   // Only one result came back
                   test.equal( total, 1 );
@@ -1085,7 +1142,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                   // CHECKING PEOPLE (the address must be added as a child record)
                   peopleR.select( { },  { children: true }, function( err, results, total ){
-                    test.ifError( err );
+                    test.ifError( err ); if( err ) return test.done();
    
                     // Only one result came back
                     test.equal( total, 1 );
@@ -1115,7 +1172,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               city    : 'perth',
             };
             g.driver.SchemaMixin.makeId( data.a2, function( err, id ) {
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
               data.a2.id = id;
 
 
@@ -1123,7 +1180,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 if( err ) return cb( err );
 
                 addressesR.select( { },  { children: true }, function( err, results, total ){
-                  test.ifError( err );
+                  test.ifError( err ); if( err ) return test.done();
    
                   // Only one result came back
                   test.equal( total, 2 );
@@ -1139,7 +1196,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                   // CHECKING PEOPLE (the address must be added as a child record)
                   peopleR.select( { },  { children: true }, function( err, results, total ){
-                    test.ifError( err );
+                    test.ifError( err ); if( err ) return test.done();
    
                     // Only one result came back
                     test.equal( total, 1 );
@@ -1173,15 +1230,15 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               configId: data.c2.id
             };
             g.driver.SchemaMixin.makeId( data.p2, function( err, id ) {
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               data.p2.id = id;
 
               peopleR.insert( data.p2, function( err ){
                 if( err ) return cb( err );
 
-                peopleR.select( { conditions: { and: [ { field: 'name', type: 'is', value: 'Chiara'  }   ]  }  },  { children: true }, function( err, results, total ){
-                  test.ifError( err );
+                peopleR.select( { conditions: { name: 'eq', args: [ 'name', 'Chiara' ] } },  { children: true }, function( err, results, total ){
+                  test.ifError( err ); if( err ) return test.done();
    
                   // Only one result came back
                   test.equal( total, 1 );
@@ -1214,15 +1271,15 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               configId: data.c2.id
             };
             g.driver.SchemaMixin.makeId( data.p3, function( err, id ) {
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               data.p3.id = id;
 
               peopleR.insert( data.p3, function( err ){
                 if( err ) return cb( err );
 
-                peopleR.select( { conditions: { and: [ { field: 'name', type: 'is', value: 'Sara'  }   ]  }  },  { children: true }, function( err, results, total ){
-                  test.ifError( err );
+                peopleR.select( { conditions: { name: 'eq', args: [ 'name', 'Sara'  ]  } },  { children: true }, function( err, results, total ){
+                  test.ifError( err ); if( err ) return test.done();
    
                   // Only one result came back
                   test.equal( total, 1 );
@@ -1254,15 +1311,15 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               configId: data.c2.id
             };
             g.driver.SchemaMixin.makeId( data.a3, function( err, id ) {
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
               data.a3.id = id;
 
 
               addressesR.insert( data.a3, function( err ){
                 if( err ) return cb( err );
 
-                addressesR.select( { conditions: { and: [ { field: 'street', type: 'is', value: 'ivermey' }  ]   }  },  { children: true }, function( err, results, total ){
-                  test.ifError( err );
+                addressesR.select( { conditions: { name: 'eq', args: [ 'street', 'ivermey'  ] } },  { children: true }, function( err, results, total ){
+                  test.ifError( err ); if( err ) return test.done();
    
                   // Only one result came back
                   test.equal( total, 1 );
@@ -1279,8 +1336,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
 
                   // CHECKING PEOPLE (the address must be added as a child record)
-                  peopleR.select( { conditions: { and: [ { field: 'name', type: 'is', value: 'Chiara'  }   ]  } },  { children: true }, function( err, results, total ){
-                    test.ifError( err );
+                  peopleR.select( { conditions: { name: 'eq', args: [ 'name', 'Chiara'  ] } }, { children: true }, function( err, results, total ){
+                    test.ifError( err ); if( err ) return test.done();
    
                     // Only one result came back
                     test.equal( total, 1 );
@@ -1307,9 +1364,9 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             console.log("Running updateSingleConfig...");
 
-            configR.update( { conditions: { and: [ { field: 'id', type: 'is', value: data.c2.id } ]  } }, { configField: 'C2 - Config Field CHANGED', configValue: 'C2 - Config Value CHANGED' }, { multi: false }, function( err ){
+            configR.update( { name: 'eq', args: [ 'id', data.c2.id ] }, { configField: 'C2 - Config Field CHANGED', configValue: 'C2 - Config Value CHANGED' }, { multi: false }, function( err ){
 
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               data.c2 = {
                 id: data.c2.id,
@@ -1376,9 +1433,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             console.log("Running updateMultipleConfig...");
 
-            configR.update( { conditions: { and: [ { field: 'configField', type: 'is', value: "C2 - Config Field CHANGED" } ]  } }, { configField: 'C2 - Config Field CHANGED AGAIN', configValue: 'C2 - Config Value CHANGED AGAIN' }, { multi: true }, function( err ){
+            configR.update( { name: 'eq', args: [ 'configField', "C2 - Config Field CHANGED" ] }, { configField: 'C2 - Config Field CHANGED AGAIN', 
+              configValue: 'C2 - Config Value CHANGED AGAIN' 
+            }, { multi: true }, function( err ){
 
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               data.c2 = {
                 id: data.c2.id,
@@ -1444,9 +1503,9 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             console.log("Running updateSingleAddress...");
 
-            addressesR.update( { conditions: { and: [ { field: 'id', type: 'is', value: data.a1.id } ]  } }, { street: 'bitton CHANGED' }, { multi: false }, function( err ){
+            addressesR.update( { name: 'eq', args: [ 'id', data.a1.id ] }, { street: 'bitton CHANGED' }, { multi: false }, function( err ){
 
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               data.a1 = {
                 personId: data.p1.id,
@@ -1456,13 +1515,15 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 configId: data.c1.id,
               }
 
-
               peopleR.select( {}, { children: true }, function( err, results ){
 
                 results.forEach( function( person ){
 
+
+
                   switch( person.name ){
                     case 'Tony':
+                      // TINGO FAILS, see https://github.com/sergeyksv/tingodb/issues/63
                       compareCollections( test, person._children.addressesR, [ data.a1, data.a2 ] );
                     break;
 
@@ -1505,13 +1566,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               return cb( null );
             }
 
- 
-
             // NOTE: This only works with 2.5 and up if using regexps
             // https://jira.mongodb.org/browse/SERVER-1155 (fixed in 2.5.3)
-            addressesR.update( { conditions: { and: [ { field: 'city', type: 'eq', value: 'perth' } ]  } }, { city: 'perth2' }, { multi: true }, function( err ){
+            addressesR.update( { name: 'eq', args: [ 'city', 'perth' ] }, { city: 'perth2' }, { multi: true }, function( err ){
 
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               data.a1 = {
                 id: data.a1.id,
@@ -1579,9 +1638,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             console.log("Running deleteSingleConfig...");
 
-            configR.delete( { conditions: { and: [ { field: 'id', type: 'is', value: data.c2.id } ]  } }, { multi: false }, function( err ){
+            console.log("MARK");
+            configR.delete( { name: 'eq', args: [ 'id', data.c2.id ] }, { multi: false }, function( err ){
 
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               peopleR.select( {}, { children: true }, function( err, results ){
 
@@ -1593,10 +1653,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     case 'Chiara':
+                      // TINGO FAILS, see https://github.com/sergeyksv/tingodb/issues/63
                       test.deepEqual( person._children.configId, {} );
                     break;
 
                     case 'Sara':
+                      // TINGO FAILS, see https://github.com/sergeyksv/tingodb/issues/63
                       test.deepEqual( person._children.configId, {} );
                     break;
 
@@ -1616,6 +1678,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                       break;
 
                       case 'ivermey':
+                        // TINGO FAILS, see https://github.com/sergeyksv/tingodb/issues/63
                         test.deepEqual( address._children.configId, {} );
                       break;
 
@@ -1643,7 +1706,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             configR.delete( {}, { multi: true }, function( err ){
 
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               peopleR.select( {}, { children: true }, function( err, results ){
 
@@ -1651,14 +1714,17 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                   switch( person.name ){
                     case 'Tony':
+                      // TINGO FAILS, see https://github.com/sergeyksv/tingodb/issues/63
                       test.deepEqual( person._children.configId, {} );
                     break;
 
                     case 'Chiara':
+                      // TINGO FAILS, see https://github.com/sergeyksv/tingodb/issues/63
                       test.deepEqual( person._children.configId, {} );
                     break;
 
                     case 'Sara':
+                      // TINGO FAILS, see https://github.com/sergeyksv/tingodb/issues/63
                       test.deepEqual( person._children.configId, {} );
                     break;
 
@@ -1674,10 +1740,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                     switch( address.street ){
                       case 'bitton CHANGED':
+                        // TINGO FAILS, see https://github.com/sergeyksv/tingodb/issues/63
                         test.deepEqual( address._children.configId, {} );
                       break;
 
                       case 'ivermey':
+                        // TINGO FAILS, see https://github.com/sergeyksv/tingodb/issues/63
                         test.deepEqual( address._children.configId, {} );
                       break;
 
@@ -1703,9 +1771,9 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             console.log("Running deleteSingleAddress...");
 
-            addressesR.delete( { conditions: { and: [ { field: 'id', type: 'is', value: data.a3.id } ]  } }, { multi: false }, function( err ){
+            addressesR.delete( { name: 'eq', args: [ 'id', data.a3.id ] }, { multi: false }, function( err ){
 
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               peopleR.select( {}, { children: true }, function( err, results ){
 
@@ -1713,10 +1781,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                   switch( person.name ){
                     case 'Tony':
+                      // TINGO FAILS, see https://github.com/sergeyksv/tingodb/issues/63
                       compareCollections( test, person._children.addressesR, [ data.a1, data.a2 ] );
                     break;
 
                     case 'Chiara':
+                      // TINGO FAILS, see https://github.com/sergeyksv/tingodb/issues/63
                       compareCollections( test, person._children.addressesR, [ ] );
                     break;
 
@@ -1747,7 +1817,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             addressesR.delete( { }, { multi: true }, function( err ){
 
-              test.ifError( err );
+              test.ifError( err ); if( err ) return test.done();
 
               peopleR.select( {}, { children: true }, function( err, results ){
 
@@ -1805,7 +1875,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             deleteMultipleAddresses,
 
           ], function( err ){
-            test.ifError( err );
+            test.ifError( err ); if( err ) return test.done();
 
             test.done();
           });
