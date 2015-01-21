@@ -35,6 +35,7 @@ var SimpleDbLayer = declare( null, {
   hardLimitOnQueries: 0,
   extraIndexes: [],
   indexBase: [],
+  strictSchemaOnFetch: true,
 
   // Fields that will be redefined in constructor, here for aesthetic reasons 
   childrenTablesHash: {},
@@ -55,16 +56,6 @@ var SimpleDbLayer = declare( null, {
     for( var k in options ){
       self[ k ] = options[ k ];
     }
-
-    // Note: there is no concept of "safeMixin" since redefineMethod() no longer
-    // exists
-    //  var option = options[ k ];
-    //  if( typeof( option ) === 'function' ){
-    //    self.redefineMethod( k, option );
-    //  } else {
-    //    self[ k ] = option;
-    //  }
-    //}
 
     // Make sure 'table', 'schema', 'db' exist in the object *somehow*
     [ 'table', 'schema', 'idProperty', 'db' ].forEach( function( k ){
