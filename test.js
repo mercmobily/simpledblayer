@@ -8,6 +8,36 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+
+/*
+TEST WISHLIST:
+--------------
+
+* Instancing twice on the same table should throw
+* Custom SchemaError works 
+* INSERT: skipValidation works
+* UPDATE: skipValidation works
+* cursor.each(), with break
+* dirty functions (dirtyRecord( obj, cb ), dirtyAll( cb ), dirtyAllParents( cb ) )
+* Positioning works 100% (use new table for it)
+* Indexes (mongo-specific), table methods: makeIndex(), dropIndex, dropAllIndexes(), generateSchemaIndexes()
+* Indexes (mongo-specific), class methods: generateSchemaIndexesAllLayers(),dropAllIndexesAllLayers()
+* Indexes (generic): _indexGroups is created properly
+* Indexes (generic): extraIndexes adds right entries to _indexGroup
+* Constructor:
+  * Make object that doesn't define one of 'table', 'schema', 'idProperty', 'db' should throw
+  * self.idProperty should be defined in the schema
+  * idProperty in the schema is AUTOMATICALLY set as required, searchable, indexOptions = { unique: true }
+  * positionBase has element that is not in schema: throw
+* Table hashes (after running layer._makeTablesHashes() )
+  * _searchableHash is enriched with children's earchable fields, with path (lookup and multi)
+  * childrenTablesHash, lookupChildrenTablesHash, multipleChildrenTablesHash, parentTablesArray are correct 
+* Children:
+  * Update (single) addressesR: does the father get updated/deleted?
+  * Update (mass) addressesR: does the father get updated/deleted?
+  * Select filtering by subrecord
+*/
+
 var 
   dummy
 
@@ -16,7 +46,6 @@ var
 , SimpleDbLayer = require('simpledblayer')
 , async = require('async')
 ;
-
 
 var db, layer;
 
@@ -146,9 +175,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
     var self = this;
 
     process.on('uncaughtException', function(err) {
-      console.error(err.stack);
+      console.error("UNCAUGHT ERROR: ", err.stack);
     });
-
 
     getDbInfo( function( err, db, SchemaMixin, DriverMixin ){
       if( err ){
@@ -171,7 +199,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       test.done();
     });
   }
-
 
   var finish = function( test ){
     var self = this;
@@ -976,12 +1003,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           [ V ] Update (single) configR: do _all_ fathers get updated/deleted?
           [ V ] Update (mass) configR: do _all_ fathers get updated/deleted?
 
-          [   ] Update (single) addressesR: does the father get updated/deleted?
-          [   ] Update (mass) addressesR: does the father get updated/deleted?
+          [TODO] Update (single) addressesR: does the father get updated/deleted?
+          [TODO] Update (mass) addressesR: does the father get updated/deleted?
 
           SELECT
           ------
-          [   ] Select filtering by subrecord
+          [TODO] Select filtering by subrecord
 
 
         */
@@ -1878,8 +1905,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       });
     },
   }
-
-
 
   if( typeof( makeExtraTests ) === 'function' ){
     
