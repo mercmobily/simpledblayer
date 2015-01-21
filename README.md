@@ -3,50 +3,6 @@ Simpledblayer
 
 SimpleDbLayer is a module that allows you to connect and query a DB server. It was created specifically to provide a thin database layer for [JsonRestStores](https://github.com/mercmobily/JsonRestStores).
 
-## TODO
-
-* [X] SearchableHash -> change it to the field type, 'string', 'id', etc.
-* [X] Make DB a normal parameter, rather than the constructor's third parameter
-* [X] Run safeMixin on all passed parameters
-* [X] Take out "join" for lookup tables, since it can be inferred easily
-* [X] Rewrite indexing functions, adding extraIndexes as an option first
-* [X] Change class-wide functions, so that there is no need to pass the constructor
-* [X] Rewrite new documentation <--- DONE!
-* [X] Add 'dirty' field, if true it will reload children and then return
-* [X] Write dirtyRecord, dirtyAllRecords, and test the whole clean thing a little more
-* [X] Write documentation for MongoMixin (now it talks a about a git checkout for tests?!?)
-* [X] Implement, and document, cursor.each() (much needed or cursors are hard to use)
-
-FINISHING OFF
-* [X] Improve range santising function, change the API, only have `skip` and `count`
-* [X] Rewrite SimpleDeclare from scratch, since it has huge fundamental flaws and bugs
-* [X] Rewrite documentation for SimpleDeclare
-* [X] Rewrite tests for SimpleDeclare, make tests work
-* [X] Make SimpleDeclare work in safe mode (again)
-* [X] Change SimpleDbLayer's documentation to use `extend()` with SimpleDeclare
-
-TESTS
-* [X] Update NPM so that it will load tests
-* [X] Make tests at least run (and fail)
-* [X] Reorganise tests so that they make sense (leave handy functions there)
-* [X] Fix all queries in current tests, make them all pass
-
-FINISH OFF SIMPLEDBLAYER
-* [X] Maybe use minimongo, if not try to improve https://github.com/sergeyksv/tingodb/issues/41
-* [X] Get rid of MongoWrapper altogether
-* [ ] Make a wish-list for tests, based on doc (all options) and on code (constructor, automatic schema changes)
-* [ ] Make a ticket asking somebody to write the extra tests
-
-RELATED (BUT NOT SIMPLEDBLAYER)
-* [ ] Implement search filter definition in JsonRestStores, based on an object acting as template. Advise only.
-* [ ] Rewrite documentation for JsonRestStores (the basic module), including the filter definition
-* [ ] Rewrite documentation for JsonRestStores' SimpleDbLayerMixin
-* [ ] Rewrite tests for JsonRestStores (the basic module)
-* [ ] Rewrite tests for JsonRestStores' SimpleDbLayerMixin
-* [ ] Adapt existing software to new API (SimpleDbLayerMixin, Hotplate, BookingDojo)
-* [ ] Check that all of the existing software works _AS IS_ with the new implementations
-* [ ] Implement filter in dstore that mimics 100% the querying in JsonRestStores, test everything
-
 Features:
 
 * Complex queries, with nested AND and OR statements, as well as ranges and sorting
@@ -265,6 +221,7 @@ Here is a full list of options that affect the behaviour of SimpleDbLayer object
 * `idProperty`. Required. No default. The property representing the record's ID.
 * `hardLimitOnQueries`. Defaults to `0` (no limit). The maximum number of objects returned by non-cursor queries.
 * `SchemaError`. Defaults to `Error`. The constructor for `Error` objects.
+* `strictSchemaOnFetch`. Defaults to `true`. Every fethed record is validated against the schema. If this is `false`, schema errors will be ignored. If `true`, a schema error will generate an error. This is important if you decide to add a required field to your schema, but don't want to update the actual database. 
 
 ## Advanced fields
 
