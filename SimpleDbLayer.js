@@ -1,3 +1,6 @@
+/*jslint node: true, laxcomma:true */
+"use strict";
+
 /*
 Copyright (C) 2013 Tony Mobily
 
@@ -54,6 +57,7 @@ var SimpleDbLayer = declare( null, {
 
     // Mixin values from constructor.
     for( var k in options ){
+      if( !options.hasOwnProperty( k ) ) continue; 
       self[ k ] = options[ k ];
     }
 
@@ -125,9 +129,9 @@ var SimpleDbLayer = declare( null, {
     
     // Add the extra indexes as defined in extraIndexes 
     Object.keys( self.extraIndexes ).forEach( function( indexName ) {
-      index = self.extraIndexes[ indexName ];
+      var index = self.extraIndexes[ indexName ];
 
-      indexOptions = index.options;
+      var indexOptions = index.options;
 
       // Work out the index's keys. This is the same as the passed "keys", but rather than
       // something line `{ workspaceId: 1 }`, it's `{ workspaceId: { direction: 1, entry: { type: 'id' } } }`
@@ -163,7 +167,7 @@ var SimpleDbLayer = declare( null, {
       // already instantiated
       var t = childNestedParams.layer.table;
       if( typeof( childNestedParams.layer ) === 'string' ){
-        var t = childNestedParams.layer;
+        t = childNestedParams.layer;
         childNestedParams.layer = self.constructor.registry[ childNestedParams.layer ];
       }
 
@@ -270,9 +274,8 @@ var SimpleDbLayer = declare( null, {
 
       // Add the extra indexes as defined in extraIndexes 
       Object.keys( childLayer.extraIndexes ).forEach( function( indexName ) {
-        index = childLayer.extraIndexes[ indexName ];
-
-        indexOptions = index.options;
+        var index = childLayer.extraIndexes[ indexName ];
+        var indexOptions = index.options;
 
         // Work out the index's keys. This is the same as the passed "keys", but rather than
         // something line `{ workspaceId: 1 }`, it's `{ workspaceId: { direction: 1, entry: { type: 'id' } } }`
@@ -309,7 +312,7 @@ var SimpleDbLayer = declare( null, {
   // Utility function to make sure that ranges are sane and are
   // within the limits
   sanitizeRanges: function( ranges, skipLimit ){
-    var self = this
+    var self = this;
 
     // Prep work so that all checks are easy and straightforward
     if( typeof( ranges ) !== 'object' ) ranges = {};
@@ -318,9 +321,9 @@ var SimpleDbLayer = declare( null, {
     // Set saneRanges up
     var saneRanges = {};
     saneRanges.skip = ranges.skip ? ranges.skip : 0;
-    saneRanges.limit = ranges.limit 
-                       ? ( ranges.limit > hardLimit && ! skipLimit ? hardLimit : ranges.limit )
-                       : hardLimit === Infinity ? 0 : hardLimit;
+    saneRanges.limit = ranges.limit ?
+      ( ranges.limit > hardLimit && ! skipLimit ? hardLimit : ranges.limit ) :
+                       hardLimit === Infinity ? 0 : hardLimit;
 
     // Return the sane range
     return saneRanges;
@@ -331,7 +334,7 @@ var SimpleDbLayer = declare( null, {
     // Usual drill
     if( typeof( cb ) === 'undefined' ){
       cb = options;
-      options = {}
+      options = {};
     } else if( typeof( options ) !== 'object' || options === null ){
       throw( new Error("The options parameter must be a non-null object") );
     }
@@ -349,7 +352,7 @@ var SimpleDbLayer = declare( null, {
     // Usual drill
     if( typeof( cb ) === 'undefined' ){
       cb = options;
-      options = {}
+      options = {};
     } else if( typeof( options ) !== 'object' || options === null ){
       throw( new Error("The options parameter must be a non-null object") );
     }
@@ -367,7 +370,7 @@ var SimpleDbLayer = declare( null, {
     // Usual drill
     if( typeof( cb ) === 'undefined' ){
       cb = options;
-      options = {}
+      options = {};
     } else if( typeof( options ) !== 'object' || options === null ){
       throw( new Error("The options parameter must be a non-null object") );
     }
@@ -385,7 +388,7 @@ var SimpleDbLayer = declare( null, {
     // Usual drill
     if( typeof( cb ) === 'undefined' ){
       cb = options;
-      options = {}
+      options = {};
     } else if( typeof( options ) !== 'object' || options === null ){
       throw( new Error("The options parameter must be a non-null object") );
     }
@@ -456,21 +459,21 @@ SimpleDbLayer.initLayers = function( ){
     var layer = Layer.registry[ key ];
     layer._makeTablesHashes();
   });
-}
+};
 // Get layer from the class' registry
 SimpleDbLayer.getLayer = function( tableName ){
   var Layer = this;
 
   if( typeof( Layer.registry ) === 'undefined' ) return undefined;
   return Layer.registry[ tableName ];
-}
+};
 
 // Get all layers as a hash
 SimpleDbLayer.getAllLayers = function(){
   var Layer = this;
   
   return Layer.registry;
-}
+};
 
 SimpleDbLayer.generateSchemaIndexesAllLayers = function( options, cb ){
 
@@ -491,7 +494,7 @@ SimpleDbLayer.generateSchemaIndexesAllLayers = function( options, cb ){
   });
 
   async.series( indexMakers, cb );
-}
+};
 
 SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
 
@@ -512,9 +515,8 @@ SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
   });
 
   async.series( indexMakers, cb );
-}
+};
 
 
 exports = module.exports = SimpleDbLayer;
-
 
