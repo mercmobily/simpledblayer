@@ -21,7 +21,7 @@ var
 
 var consolelog = debug( 'simpledblayer:main');
 
-var SimpleDbLayer = declare( null, {
+var SimpleDbLayer = declare( Object, {
 
   // Mandatory properties
   table: null,
@@ -451,9 +451,9 @@ var SimpleDbLayer = declare( null, {
 
 
 // Initialise all layers, creating relationship hashes
-SimpleDbLayer.initLayers = function( ){
+SimpleDbLayer.initLayers = function( Layer ){
 
-  var Layer = this;
+  Layer = Layer || this;
   
   Object.keys( Layer.registry ).forEach( function( key ){
     var layer = Layer.registry[ key ];
