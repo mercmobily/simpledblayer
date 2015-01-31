@@ -36,6 +36,7 @@ TEST WISHLIST:
   * Update (single) addressesR: does the father get updated/deleted?
   * Update (mass) addressesR: does the father get updated/deleted?
   * Select filtering by subrecord
+  * Update record: do children (single and lookup) get updated correctly?
 */
 
 var 
@@ -281,8 +282,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         });
       });
     },
-      
-      //   g.people.select( { ranges: { limit: 1  }, conditions: { and: { name: { type: 'is', value: 'Joe' }, surname: { type: 'is', value: 'Mitchell' }, age:  { type: 'is', value: 48 } } } }
 
     "selects, equality" : function( test ){
 
