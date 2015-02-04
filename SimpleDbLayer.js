@@ -55,6 +55,10 @@ var SimpleDbLayer = declare( Object, {
 
     options = options || {};
 
+    self._indexGroups = { __main: { indexes: {}, indexBase: self.indexBase } };
+    self._searchableHash = {};
+   
+
     // Mixin values from constructor.
     for( var k in options ){
       if( !options.hasOwnProperty( k ) ) continue; 
@@ -74,8 +78,9 @@ var SimpleDbLayer = declare( Object, {
 
     // idProperty NEEDS to be required and searchable, and (index-wise) unique
     self.schema.structure[ self.idProperty ].required = true;
-    self.schema.structure[ self.idProperty ].searchable = true;
     self.schema.structure[ self.idProperty ].indexOptions = { unique: true };
+
+    self._makeFieldSearchable( self.idProperty );
 
     // positionBase elements NEED to be required and searchable
     self.positionBase.forEach( function( k ){
@@ -83,7 +88,7 @@ var SimpleDbLayer = declare( Object, {
         throw( new Error("Element in positionBase but not in schema: " + k ) );
       }
       self.schema.structure[ k ].required = true;
-      self.schema.structure[ k ].searchable = true;
+      self._makeFieldSearchable( k );
     });
 
     // Gets its own variables, avoid using the prototype's by accident
@@ -92,42 +97,13 @@ var SimpleDbLayer = declare( Object, {
     self.multipleChildrenTablesHash = {};
     self.parentTablesArray = [];
    
-    // Make up searchable hash and index group
-    self._makeSearchableHashAndIndexGroups();
-  },
-
-  _makeSearchableHashAndIndexGroups: function( options ){
-
-    var self = this;
-
-    self._indexGroups = { __main: { indexes: {}, indexBase: self.indexBase } };
-
-    self._searchableHash = {};
-   
-    // Add entries to _searchableHash and _indexGroups
+    // Make field _really_ searchable by adding it to _searchableHash and _indexGroups
     Object.keys( self.schema.structure ).forEach( function( field ) {
-      var entry = self.schema.structure[ field ];
-
-      // Add the searchable entry as a single index, and honouring the indexDirection, indexOptions and
-      // indexName options in the schema
-      if( entry.searchable ){
-
-        self._searchableHash[ field ] = entry;
-
-        // indexName and indexDirection can be changed by the schema definition
-        var indexDirection = typeof( entry.indexDirection ) !== 'undefined' ? entry.indexDirection : 1;
-        var indexName = typeof( entry.indexName ) !== 'undefined' ? entry.indexName : field;
-        var indexOptions = typeof( entry.indexOptions ) !== 'undefined' ? entry.indexOptions : {};
-
-        var newEntry = { fields: {}, options: indexOptions };
-        newEntry.fields[ field ] = { entry: entry, direction: indexDirection };
-        //newEntry[ field ] = entry;
-        self._indexGroups.__main.indexes[ indexName ] = newEntry;
-      }
-
+      if( self.schema.structure[ field ].searchable ) self._makeFieldSearchable( field );
     });
     
-    // Add the extra indexes as defined in extraIndexes 
+    // Add the extra indexes as defined in extraIndexes. Note that this won't
+    // affect `searchable` -- this is just to add indexes. 
     Object.keys( self.extraIndexes ).forEach( function( indexName ) {
       var index = self.extraIndexes[ indexName ];
 
@@ -145,9 +121,36 @@ var SimpleDbLayer = declare( Object, {
       });
       self._indexGroups.__main.indexes[ indexName ] = { extra: true, fields: fields, options: indexOptions };
     });
+  },
 
+  _makeFieldSearchable: function( entryKey, entryLayer, entryLayerName ){
 
+    var self = this;
 
+    // First of all, make it searchable in the schema
+    // (if it's a local field)
+    if( !entryLayerName ) self.schema.structure[ entryKey ].searchable = true;
+
+    entryLayer = entryLayer || this;
+    var fullName = entryLayerName ? entryLayerName + '.' + entryKey : entryKey;
+    var indexGroupName = entryLayerName || '__main';
+
+    var entry = entryLayer.schema.structure[ entryKey ];
+
+    var indexDirection = typeof( entry.indexDirection ) !== 'undefined' ? entry.indexDirection : 1;
+    var indexName = typeof( entry.indexName ) !== 'undefined' ? entry.indexName : entryKey;
+    var indexOptions = typeof( entry.indexOptions ) !== 'undefined' ? entry.indexOptions : {};
+
+    var newEntry = { fields: {}, options: indexOptions };
+    newEntry.fields[ fullName ] = { entry: entry, direction: indexDirection };
+
+    // Not in the main group: make up entry with `indexGroupName` which will inclde the indexBase
+    if( entryLayerName ){
+      self._indexGroups[ indexGroupName ] = self._indexGroups[ indexGroupName ] || { indexes: {}, indexBase: entryLayer.indexBase };
+    }
+    
+    self._indexGroups[ indexGroupName ].indexes[ indexName ] = newEntry;
+    self._searchableHash[ fullName ] = entry;
   },
 
   _makeTablesHashes: function(){
@@ -191,7 +194,6 @@ var SimpleDbLayer = declare( Object, {
         if( typeof( childNestedParams.layerField ) === 'undefined' ){
           throw( new Error( "layerField needs to be set for type lookup" ) );
         }
-
       }
 
       // Work out subName, depending on the type of the child.
@@ -224,20 +226,17 @@ var SimpleDbLayer = declare( Object, {
 
       consolelog("Adding entries to father's _searchableHash to make sure that searchable children fields are searchable");
       
-      // Making sure that all keys in join are marked as searchable in children (as well
-      // as being in child's _searchableHash)
+      // Making sure that all keys in join are marked as searchable in children
       if( childNestedParams.type === 'multiple'){
         Object.keys( childNestedParams.join ).forEach( function( key ){
           consolelog( "Forcing ", key, 'in table', childLayer.table, 'to be searchable' );
-          childLayer._searchableHash[ key ] = childLayer.schema.structure[ key ];
-          childLayer.schema.structure[ key ].searchable = true;
+          childLayer._makeFieldSearchable ( key );
         });
       }
       var layerField = childNestedParams.layerField;
       consolelog( "Forcing ", layerField, 'in table', childLayer.table, 'to be searchable' );
       if( childNestedParams.type === 'lookup' ){
-        childLayer._searchableHash[ layerField ] = childLayer.schema.structure[ layerField ];
-        childLayer.schema.structure[ layerField ].searchable = true;
+        childLayer._makeFieldSearchable( layerField );
       }
 
       // Making sure that all searchable fields in child layer are searchable,
@@ -251,23 +250,7 @@ var SimpleDbLayer = declare( Object, {
         // If entry is searchable, add the field to the _searchableHash
         if( entry.searchable ){
           consolelog("Field is searchable! So: ", subName + "." + fieldName, "will be searchable in father table" );
-
-          self._searchableHash[ subName + "." + fieldName ] = entry;
-
-          // Add the entry to indexGroup
-          self._indexGroups[ subName ] = self._indexGroups[ subName ] || { indexes: {}, indexBase: childLayer.indexBase };
-          if( entry.searchable ){
-
-            // indexName and indexDirection can be changed by the schema definition
-            var indexDirection = typeof( entry.indexDirection ) !== 'undefined' ? entry.indexDirection : 1;
-            var indexName = typeof( entry.indexName ) !== 'undefined' ? entry.indexName : fieldName;
-            var indexOptions = typeof( entry.indexOptions ) !== 'undefined' ? entry.indexOptions : {};
-
-            var newEntry = { fields: {}, options: indexOptions };
-            newEntry.fields[ fieldName ] = { entry: entry, direction: indexDirection };
-
-            self._indexGroups[ subName].indexes[ indexName ] = newEntry;
-          }
+          self._makeFieldSearchable( fieldName, childLayer, subName );
         }        
       }); 
 
