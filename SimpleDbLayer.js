@@ -39,6 +39,7 @@ var SimpleDbLayer = declare( Object, {
   extraIndexes: [],
   indexBase: [],
   strictSchemaOnFetch: true,
+  fetchChildrenByDefault: false,  
 
   // Fields that will be redefined in constructor, here for aesthetic reasons 
   childrenTablesHash: {},
@@ -48,6 +49,7 @@ var SimpleDbLayer = declare( Object, {
   _indexGroups: { },
 
   _searchableHash: {},
+  _searchableHashSchema: {},
 
   constructor: function( options ){
 
@@ -57,8 +59,8 @@ var SimpleDbLayer = declare( Object, {
 
     self._indexGroups = { __main: { indexes: {}, indexBase: self.indexBase } };
     self._searchableHash = {};
+    self._searchableHashSchema = {};
    
-
     // Mixin values from constructor.
     for( var k in options ){
       if( !options.hasOwnProperty( k ) ) continue; 
@@ -151,6 +153,7 @@ var SimpleDbLayer = declare( Object, {
     
     self._indexGroups[ indexGroupName ].indexes[ indexName ] = newEntry;
     self._searchableHash[ fullName ] = entry;
+    self._searchableHashSchema[ fullName ] = entryLayer.schema;
   },
 
   _makeTablesHashes: function(){
