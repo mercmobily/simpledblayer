@@ -834,8 +834,24 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       });
     },
 
+    "select, cast data type": function( test ){
+      clearAndPopulateTestCollection( g, function( err ){
+        test.ifError( err ); if( err ) return test.done();
 
 
+        g.people.select( { conditions: { name: 'eq', args: [ 'age', '37' ] } }, function( err, results, total ){
+          test.ifError( err ); if( err ) return test.done();
+
+          var r = [
+                    { name: 'Tony',      surname: 'Mobily',     age: 37 },
+                  ];
+
+          test.equal( total, 1 );
+          compareCollections( test, results, r );
+          test.done();
+        });
+      });
+    },
 
     "updates": function( test ){
       clearAndPopulateTestCollection( g, function( err ){
