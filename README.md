@@ -230,7 +230,7 @@ These attributes are explained later in the documentation.
 * `positionField`. Defaults to `null` (no positioning). The field used by the database engine to keep track of positioning.
 * `positionBase`. Defaults to `[]`. The list of key fields which will `group` positioning
 * `childrenField`. Defaults to `_children`. The attribute under which the `nested` children will be loaded into.
-* `fetchChildrenByDefault`. Defaults to `false`; If true, queries returning children (select and insert with `returnRecord` set to `true`) will return children by default.
+* `fetchChildrenByDefault`. Defaults to `false`; If true, queries returning records will return children by default.
 * `nested`. Defaults to `[]`. The 'children' tables for in-table joints.
   
 # Running queries
@@ -244,13 +244,12 @@ To insert data into your table:
       name: 'Tony',
       surname: 'Mobily',
       age: 37 },
-      { returnRecord: true }, function( err, record ){
+      , function( err, record ){
 
 
 The second parameter is optional. If you pass it:
 
-* If `returnRecord` is `true`, then the callback will be called with `record` representing the record just created. Default is `false`.
-* If `children` is `true`, then when using `returnRecord`, the returned record will also include its children. Default is `false`.
+* If `children` is `true`, the returned record will also include its children. Default is `false`.
 * If `skipValidation` is `true`, then the validation of the data against the schema will be skipped. Default is `false`.
 * `If `position` is defined, and table has a `positionField` element, then the record will be placed in the designated spot. The `position` element should be an object with `where` and optionally `beforeId`. See the [Repositioning section](#Repositioning) section in the documentation for details.
 
@@ -262,7 +261,9 @@ This is a simple update:
       { name: 'startsWith', args: [ 'surname', 'mob' ] },
       { surname: 'Tobily' },
       { deleteUnsetFields: false, multi: true },
-      function( err, num ){
+      function( err, num, record ){
+
+The callback will have `record` set only for single updates (where `multi` is set to false).
 
 The third parameter, here set as `{ deleteUnsetFields: false, multi: true }`, is optional. If you pass it:
 
@@ -279,7 +280,9 @@ This is a simple delete:
     people.delete(
       { name: 'gt', args: [ 'age', 28 ] },
       { multi: true },
-      function( err, howMany ){
+      function( err, howMany, record ){
+
+The callback will have `record` set only for single updates (where `multi` is set to false).
 
 The second parameter, here set as `{ multi: true }`, is optional. If you pass it:
 
@@ -632,7 +635,7 @@ Here is a practical example of what happens when adding data with nested tables:
 ```javascript
     function addPeople( cb ){
 
-      var opt = { returnRecord: true, children: true };
+      var opt = { children: true };
       people.insert( { id: 1, name: 'Tony', surname: 'Mobily', age: 37 }, opt, function( err, recordTony ){
         if( err ) return cb( err );
 
@@ -650,7 +653,7 @@ Here is a practical example of what happens when adding data with nested tables:
 
     function addEmails( cb ){
 
-      var opt = { returnRecord: true, children: true };
+      var opt = { children: true };
   
       emails.insert( { id: 1, personId: 1, address: 'tonymobily@gmail.com' }, opt, function( err, tonyEmail1 ){
         if( err ) return cb( err );
@@ -878,10 +881,10 @@ Imagine that you add some data:
     var tony = { id: 1, name: 'Tony', surname: 'Mobily', age: 39 };
     var chiara = { id: 2, name: 'Chiara', surname: 'Mobily', age: 25 };
 
-    people.insert( tony, { returnRecord: true }, function( err, tony ){
+    people.insert( tony, , function( err, tony ){
       if( err ) return cb( err );
 
-      people.insert( chiara, { returnRecord: true }, function( err, chiara ){
+      people.insert( chiara, , function( err, chiara ){
         if( err ) return cb( err );
         // ...
 
@@ -930,16 +933,16 @@ So, for example:
     var dion = { id: 5, name: 'Dion', surname: 'Patelis', age: 38 }
 
     // The record will be placed first
-    people.insert( sara, { returnRecord: true, position: 'first' }, function( err, sara ){
+    people.insert( sara, { position: 'first' }, function( err, sara ){
       if( err ) return cb( err );
 
       // The record will be placed before ID 2 ('Chiara')
-      people.insert( marco, { returnRecord: true, position: 'before', beforeId: 2 }, function( err, marco ){
+      people.insert( marco, { position: 'before', beforeId: 2 }, function( err, marco ){
         if( err ) return cb( err );
         // ...
 
         // The record will be placed last
-        people.insert( dion, { returnRecord: true, position: 'last' }, function( err, dion ){
+        people.insert( dion, { position: 'last' }, function( err, dion ){
           if( err ) return cb( err );
           // ...
 ````
