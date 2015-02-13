@@ -255,12 +255,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
     },
 
-    "insert with returnRecord": function( test ){
+    "insert": function( test ){
 
       g.people.delete( { }, { multi: true }, function( err ){
         test.ifError( err ); if( err ) return test.done();
         var person = { name: "Joe", surname: "Mitchell", age: 48 };
-        g.people.insert( person, { returnRecord: true }, function( err, personReturned ){
+        g.people.insert( person, , function( err, personReturned ){
           test.ifError( err ); if( err ) return test.done();
           test.deepEqual( person, personReturned, "Mismatch between what was written onto the DB and what returned from the DB" );
           test.done();
@@ -269,19 +269,6 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
     },
 
-    "insert without returnRecord": function( test ){
-
-      g.people.delete( { }, { multi: true }, function( err ){
-        test.ifError( err ); if( err ) return test.done();
-
-        var person = { name: "Joanna", surname: "Mitchell", age: 45 };
-        g.people.insert( person, { returnRecord: false }, function( err, personReturned ){
-          test.ifError( err ); if( err ) return test.done();
-          test.equal( undefined, personReturned, "If returnRecord is false, the second callback parameter must be undefined" );
-          test.done();
-        });
-      });
-    },
 
     "selects, equality" : function( test ){
 
