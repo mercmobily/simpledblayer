@@ -17,11 +17,12 @@ var
 , declare = require('simpledeclare')
 , async = require('async')
 , debug = require('debug')
+, EventEmitter = require('events').EventEmitter
 ;
 
 var consolelog = debug( 'simpledblayer:main');
 
-var SimpleDbLayer = declare( Object, {
+var SimpleDbLayer = declare( EventEmitter, {
 
   // Mandatory properties
   table: null,
@@ -325,7 +326,7 @@ var SimpleDbLayer = declare( Object, {
     var conditions = {};
     conditions[ this.idProperty ] = id;
 
-    this.select( { conditions: conditions }, options, function( err, docs ){
+    this.selectByHash( { conditions: conditions }, options, function( err, docs ){
       if( err ) return cb( err );
 
       if( ! docs.length ) return cb( null, null );
@@ -384,9 +385,14 @@ var SimpleDbLayer = declare( Object, {
 
     var conditions = {};
     conditions[ this.idProperty ] = id;
-    options.multi = false;
 
-    this.update( conditions, updateObject, options, cb );
+    // Force `multi` to false, without causing a side effect on the
+    // orginal options object
+    var opts = {};
+    for( var k in options ) opts[ k ] = options[ k ];
+    opts.multi = false;
+
+    this.updateByHash( conditions, updateObject, opts, cb );
   },
 
   updateByHash: function( conditions, updateObject, options, cb ){
@@ -407,7 +413,6 @@ var SimpleDbLayer = declare( Object, {
       });
     }
 
-    //console.log("CONVERTED CONDITIONS: ", require('util').inspect( o, { depth: 10 }  ) );
     this.update( o, updateObject, options, cb );
   },
 
@@ -423,12 +428,7 @@ var SimpleDbLayer = declare( Object, {
       throw( new Error("The options parameter must be a non-null object") );
     }
       
-    if( options.returnRecord ){
-      cb( null, record );
-    } else {
-      cb( null, null );
-    }
-
+    cb( null, record );    
   },
 
   insert: function( record, options, cb ){
@@ -441,13 +441,50 @@ var SimpleDbLayer = declare( Object, {
       throw( new Error("The options parameter must be a non-null object") );
     }
 
-    if( options.returnRecord ){
-      cb( null, record );
-    } else {
-      cb( null, null );
+    cb( null, record );  
+  },
+
+  deleteById: function( id, updateObject, options, cb ){
+    
+    if( typeof( options ) === 'function' ){
+      cb = options;
+      options = {};
     }
 
+    var conditions = {};
+    conditions[ this.idProperty ] = id;
+
+    // Force `multi` to false, without causing a side effect on the
+    // orginal options object
+    var opts = {};
+    for( var k in options ) opts[ k ] = options[ k ];
+    opts.multi = false;
+
+    this.deleteByHash( conditions, opts, cb );
   },
+
+  deleteByHash: function( conditions, options, cb ){
+
+    //console.log("SELECTHASH: ", filters.conditions );
+    var o;
+    var keys = Object.keys( conditions );
+
+    if( keys.length === 0 ){
+      o = {};
+    } else if( keys.length === 1 ){
+      var key = keys[ 0 ];
+      o = { name: 'eq', args: [ key, conditions[ key ] ] };
+    } else {
+      o = { name: 'and', args: [] };
+      keys.forEach( function( key ){
+        o.args.push( { name: 'eq', args: [ key, conditions[ key ] ] } );
+      });
+    }
+
+    //console.log("CONVERTED CONDITIONS: ", require('util').inspect( o, { depth: 10 }  ) );
+    this.delete( o, options, cb );
+  },
+
 
   'delete': function( filters, options, cb ){
 
