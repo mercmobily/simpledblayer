@@ -214,7 +214,7 @@ As always, you can also define a the SchemaError constructor when creating the o
 
 Here is a full list of options that affect the behaviour of SimpleDbLayer objects. Please keep in mind that all of them can me defined either in the constructor's prototype, or as attribute of the constructor's parameter oject.
 
-## Basic fields
+## Basic properties
 
 * `table`. Required. No default. The table name in the underlying database.
 * `schema`. Required. No default. The schema to be used.
@@ -223,7 +223,7 @@ Here is a full list of options that affect the behaviour of SimpleDbLayer object
 * `SchemaError`. Defaults to `Error`. The constructor for `Error` objects.
 * `strictSchemaOnFetch`. Defaults to `true`. Every fethed record is validated against the schema. If this is `false`, schema errors will be ignored. If `true`, a schema error will generate an error. This is important if you decide to add a required field to your schema, but don't want to update the actual database. 
 
-## Advanced fields
+## Advanced properties
 
 These attributes are explained later in the documentation.
 
@@ -1131,11 +1131,11 @@ To define custom indexes that cannot be covered with the options above, or to pe
 
       indexBase: [ 'workspaceId'],
 
-      generateSchemaIndexes: function generateSchemaIndexes( options, callback ){
+      generateSchemaIndexes: function f( options, callback ){
         var self = this;
 
         // Call the original call
-        this.inheritedAsync( generateSchemaIndexes, arguments, function( err ){
+        this.inheritedAsync( f, arguments, function( err ){
           if( err ) return callback( err );
 
           // Make indexes for name and surname together
