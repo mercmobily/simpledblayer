@@ -229,7 +229,6 @@ These attributes are explained later in the documentation.
 
 * `positionField`. Defaults to `null` (no positioning). The field used by the database engine to keep track of positioning.
 * `positionBase`. Defaults to `[]`. The list of key fields which will `group` positioning
-* `childrenField`. Defaults to `_children`. The attribute under which the `nested` children will be loaded into.
 * `fetchChildrenByDefault`. Defaults to `false`; If true, queries returning records will return children by default.
 * `nested`. Defaults to `[]`. The 'children' tables for in-table joints.
   
@@ -537,7 +536,7 @@ You can now define a layer as "child" of another one:
 
 **It's absolutely crucial that you run `SimpleDbLayer.initLayers()` before running queries if you have nested layers.** 
 
-Whenever you load a record from the `people` table, you will also get a `_children` attribute for that object (or, whatever you defined as `childrenField`) that will include all children data. `lookup`s will become one single object, whereas `multiple`s will become array of objects.
+Whenever you load a record from the `people` table, you will also get a `_children` attribute for that object that will include all children data. `lookup`s will become one single object, whereas `multiple`s will become array of objects. Note: children are always loaded into `_children`, which cannot be changed. This is to keep things sane code-wise and data-wise.
 
 If you see carefully, `people` is defined like this:
 
