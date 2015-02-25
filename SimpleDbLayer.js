@@ -34,7 +34,7 @@ var SimpleDbLayer = declare( EventEmitter, {
   SchemaError: Error,
   positionField: null,
   positionBase: [],
-  childrenField: '_children',
+  //childrenField: '_children', // Not implemented. Children field is best to be hardcoded to _children
   nested: [],
   hardLimitOnQueries: 0,
   extraIndexes: [],
@@ -428,7 +428,7 @@ var SimpleDbLayer = declare( EventEmitter, {
       throw( new Error("The options parameter must be a non-null object") );
     }
       
-    cb( null, record );    
+    cb( null, 0, record );    
   },
 
   insert: function( record, options, cb ){
