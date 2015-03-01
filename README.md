@@ -260,9 +260,9 @@ This is a simple update:
       { name: 'startsWith', args: [ 'surname', 'mob' ] },
       { surname: 'Tobily' },
       { deleteUnsetFields: false, multi: true },
-      function( err, num, record ){
+      function( err, howMany, record ){
 
-The callback will have `record` set only for single updates (where `multi` is set to false).
+The callback will have `howMany` set as the number of changed records. The `record` parameter is not always there: if `multi` was set as `true`, then `record` is `undefined`. If `multi` was set as `false` (the default), `record` will be either the changed record (if one was updated -- in this case `num` is 1) or `null` (if nothing was updated -- in this case `num` is 0).
 
 The third parameter, here set as `{ deleteUnsetFields: false, multi: true }`, is optional. If you pass it:
 
@@ -281,7 +281,7 @@ This is a simple delete:
       { multi: true },
       function( err, howMany, record ){
 
-The callback will have `record` set only for single updates (where `multi` is set to false).
+The callback will have `howMany` set as the number of deleted records.  The `record` parameter is not always there: if `multi` was set as `true`, then `record` is `undefined`. If `multi` was set as `false` (the default), `record` will be either the deleted record (if one was deleted -- in this case `num` is 1) or `null` (if nothing was deleted -- in this case `num` is 0).
 
 The second parameter, here set as `{ multi: true }`, is optional. If you pass it:
 
