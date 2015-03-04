@@ -260,7 +260,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       g.people.delete( { }, { multi: true }, function( err ){
         test.ifError( err ); if( err ) return test.done();
         var person = { name: "Joe", surname: "Mitchell", age: 48 };
-        g.people.insert( person, , function( err, personReturned ){
+        g.people.insert( person, function( err, personReturned ){
           test.ifError( err ); if( err ) return test.done();
           test.deepEqual( person, personReturned, "Mismatch between what was written onto the DB and what returned from the DB" );
           test.done();
