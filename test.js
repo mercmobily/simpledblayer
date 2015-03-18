@@ -276,10 +276,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         test.ifError( err ); if( err ) return test.done();
 
         g.people.select( { conditions: 
-          { name: 'and', args: [
-            { name: 'eq', args: [ 'name', 'Tony' ] },
-            { name: 'eq', args: [ 'surname', 'Mobily' ] },
-            { name: 'eq', args: [ 'age', 37 ] },
+          { type: 'and', args: [
+            { type: 'eq', args: [ 'name', 'Tony' ] },
+            { type: 'eq', args: [ 'surname', 'Mobily' ] },
+            { type: 'eq', args: [ 'age', 37 ] },
           ] }
         }, function( err, results, total ){ 
                   
@@ -303,7 +303,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err ); if( err ) return test.done();
 
-        g.people.select( { conditions: { name: 'startsWith', args: [ 'surname', 'Mob' ] } }, function( err, results, total ){
+        g.people.select( { conditions: { type: 'startsWith', args: [ 'surname', 'Mob' ] } }, function( err, results, total ){
           test.ifError( err ); if( err ) return test.done();
 
           var r = [
@@ -315,7 +315,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           test.equal( total, 3 );
           compareCollections( test, results, r );
 
-          g.people.select( { conditions: { name: 'endsWith', args: [ 'surname', 'nor' ] } }, function( err, results, total ){
+          g.people.select( { conditions: { type: 'endsWith', args: [ 'surname', 'nor' ] } }, function( err, results, total ){
             test.ifError( err ); if( err ) return test.done();
 
             var r = [
@@ -325,7 +325,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             compareCollections( test, results, r );
             test.equal( total, 1 );
 
-            g.people.select( { conditions: { name: 'contains', args: [ 'surname', 'on' ] } }, function( err, results, total ){
+            g.people.select( { conditions: { type: 'contains', args: [ 'surname', 'on' ] } }, function( err, results, total ){
               test.ifError( err ); if( err ) return test.done();
 
               var r = [
@@ -348,7 +348,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err ); if( err ) return test.done();
 
-        g.people.select( { conditions: { name: 'gt', args: [ 'name', 'M' ] } }, function( err, results, total ){
+        g.people.select( { conditions: { type: 'gt', args: [ 'name', 'M' ] } }, function( err, results, total ){
           test.ifError( err ); if( err ) return test.done();
 
           var r = [
@@ -359,7 +359,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           compareCollections( test, results, r );
           test.equal( total, 2 );
 
-          g.people.select( { conditions: { name: 'gt', args: [ 'age', 22 ] } }, function( err, results, total ){
+          g.people.select( { conditions: { type: 'gt', args: [ 'age', 22 ] } }, function( err, results, total ){
             test.ifError( err ); if( err ) return test.done();
 
             var r = [
@@ -371,7 +371,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             test.equal( total, 2 );
 
 
-            g.people.select( { conditions: { name: 'gte', args: [ 'age', 22 ] } }, function( err, results, total ){
+            g.people.select( { conditions: { type: 'gte', args: [ 'age', 22 ] } }, function( err, results, total ){
               test.ifError( err ); if( err ) return test.done();
 
               var r = [
@@ -384,9 +384,9 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               test.equal( total, 3 );
 
 
-              g.people.select( { conditions: { name: 'and', args: [
-                { name: 'gt', args: [ 'age', 22 ] },                
-                { name: 'lt', args: [ 'age', 60 ] },
+              g.people.select( { conditions: { type: 'and', args: [
+                { type: 'gt', args: [ 'age', 22 ] },                
+                { type: 'lt', args: [ 'age', 60 ] },
               ] } }, function( err, results, total ){
 
                 var r = [
@@ -663,12 +663,12 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           compareCollections( test, results, r );
           test.equal( total, 4 );
                       
-          g.people.delete( { name: 'eq', args: [ 'name', 'STOCAZZO' ] },  function( err, howMany ){
+          g.people.delete( { type: 'eq', args: [ 'name', 'STOCAZZO' ] },  function( err, howMany ){
             test.ifError( err ); if( err ) return test.done();
  
             test.equal( howMany, 0 );
 
-            g.people.delete( { name: 'eq', args: [ 'name', 'Tony' ] },  function( err, howMany ){
+            g.people.delete( { type: 'eq', args: [ 'name', 'Tony' ] },  function( err, howMany ){
               test.ifError( err ); if( err ) return test.done();
    
               test.equal( howMany, 1 );
@@ -685,7 +685,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 compareCollections( test, results, r );
                 test.equal( total, 3 );
 
-                g.people.delete( { name: 'eq', args: [ 'surname', 'Mobily' ] }, { multi: true }, function( err, howMany){
+                g.people.delete( { type: 'eq', args: [ 'surname', 'Mobily' ] }, { multi: true }, function( err, howMany){
                   test.ifError( err ); if( err ) return test.done();
     
                   test.equal( howMany, 2 );
@@ -717,11 +717,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
 
         g.people.select( { conditions:
-          { name: 'and', args: [
-            { name: 'eq', args: [ 'surname', 'Mobily' ] },
-            { name: 'or', args: [
-              { name: 'eq', args: [ 'age', 22 ] },
-              { name: 'eq', args: [ 'age', 37 ] },            
+          { type: 'and', args: [
+            { type: 'eq', args: [ 'surname', 'Mobily' ] },
+            { type: 'or', args: [
+              { type: 'eq', args: [ 'age', 22 ] },
+              { type: 'eq', args: [ 'age', 37 ] },            
             ] },
           ] }
         }, function( err, results, total ){
@@ -737,9 +737,9 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           compareCollections( test, results, r );
 
           g.people.select( { conditions:
-            { name: 'or', args: [
-              { name: 'eq', args: [ 'name', 'Tony' ] },
-              { name: 'eq', args: [ 'name', 'Chiara' ] },
+            { type: 'or', args: [
+              { type: 'eq', args: [ 'name', 'Tony' ] },
+              { type: 'eq', args: [ 'name', 'Chiara' ] },
             ] }
           }, function( err, results, total ){
 
@@ -796,7 +796,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         test.ifError( err ); if( err ) return test.done();
 
 
-        g.people.select( { conditions: { name: 'eq', args: [ 'surname', 'MObILy' ] } }, function( err, results, total ){
+        g.people.select( { conditions: { type: 'eq', args: [ 'surname', 'MObILy' ] } }, function( err, results, total ){
           test.ifError( err ); if( err ) return test.done();
 
           var r = [
@@ -809,7 +809,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           test.equal( total, 3 );
           compareCollections( test, results, r );
 
-          g.people.select( { conditions: { name: 'contains', args: [ 'surname', 'ObI' ] } }, function( err, results, total ){
+          g.people.select( { conditions: { type: 'contains', args: [ 'surname', 'ObI' ] } }, function( err, results, total ){
             test.ifError( err ); if( err ) return test.done();
 
             test.equal( total, 3 );
@@ -826,7 +826,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         test.ifError( err ); if( err ) return test.done();
 
 
-        g.people.select( { conditions: { name: 'eq', args: [ 'age', '37' ] } }, function( err, results, total ){
+        g.people.select( { conditions: { type: 'eq', args: [ 'age', '37' ] } }, function( err, results, total ){
           test.ifError( err ); if( err ) return test.done();
 
           var r = [
@@ -844,7 +844,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err ); if( err ) return test.done();
 
-        g.people.update( { name: 'eq', args: [ 'surname', 'Mobily' ] }, { surname: 'Tobily' }, { multi: true }, function( err, howMany ){
+        g.people.update( { type: 'eq', args: [ 'surname', 'Mobily' ] }, { surname: 'Tobily' }, { multi: true }, function( err, howMany ){
           test.ifError( err ); if( err ) return test.done();
 
           test.deepEqual( howMany, 3 );
@@ -863,7 +863,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             compareCollections( test, results, r );
             test.equal( total, 4 );
 
-            g.people.update( { name: 'eq', args: [ 'name', 'Tony' ] }, { surname: 'Lobily' }, function( err, howMany ){
+            g.people.update( { type: 'eq', args: [ 'name', 'Tony' ] }, { surname: 'Lobily' }, function( err, howMany ){
               test.ifError( err ); if( err ) return test.done();
 
               test.deepEqual( howMany, 1 );
@@ -881,13 +881,13 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 compareCollections( test, results, r );
                 test.equal( total, 4 );
 
-                g.people.update( { name: 'eq', args: [ 'name', 'Tony' ] }, { name: 'Tony', surname: 'Sobily' }, { deleteUnsetFields: true }, function( err, howMany ){
+                g.people.update( { type: 'eq', args: [ 'name', 'Tony' ] }, { name: 'Tony', surname: 'Sobily' }, { deleteUnsetFields: true }, function( err, howMany ){
                   
                   test.ifError( err ); if( err ) return test.done();
 
                   test.equal( howMany, 1 );
 
-                  g.people.select( { conditions: { name: 'eq', args: [ 'name', 'Tony' ] } },  function( err, results, total ){
+                  g.people.select( { conditions: { type: 'eq', args: [ 'name', 'Tony' ] } },  function( err, results, total ){
                     test.ifError( err ); if( err ) return test.done();
 
                     test.equal( total, 1 );
@@ -1266,7 +1266,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               peopleR.insert( data.p2, function( err ){
                 if( err ) return cb( err );
 
-                peopleR.select( { conditions: { name: 'eq', args: [ 'name', 'Chiara' ] } },  { children: true }, function( err, results, total ){
+                peopleR.select( { conditions: { type: 'eq', args: [ 'name', 'Chiara' ] } },  { children: true }, function( err, results, total ){
                   test.ifError( err ); if( err ) return test.done();
    
                   // Only one result came back
@@ -1307,7 +1307,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               peopleR.insert( data.p3, function( err ){
                 if( err ) return cb( err );
 
-                peopleR.select( { conditions: { name: 'eq', args: [ 'name', 'Sara'  ]  } },  { children: true }, function( err, results, total ){
+                peopleR.select( { conditions: { type: 'eq', args: [ 'name', 'Sara'  ]  } },  { children: true }, function( err, results, total ){
                   test.ifError( err ); if( err ) return test.done();
    
                   // Only one result came back
@@ -1347,7 +1347,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               addressesR.insert( data.a3, function( err ){
                 if( err ) return cb( err );
 
-                addressesR.select( { conditions: { name: 'eq', args: [ 'street', 'ivermey'  ] } },  { children: true }, function( err, results, total ){
+                addressesR.select( { conditions: { type: 'eq', args: [ 'street', 'ivermey'  ] } },  { children: true }, function( err, results, total ){
                   test.ifError( err ); if( err ) return test.done();
    
                   // Only one result came back
@@ -1365,7 +1365,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
 
                   // CHECKING PEOPLE (the address must be added as a child record)
-                  peopleR.select( { conditions: { name: 'eq', args: [ 'name', 'Chiara'  ] } }, { children: true }, function( err, results, total ){
+                  peopleR.select( { conditions: { type: 'eq', args: [ 'name', 'Chiara'  ] } }, { children: true }, function( err, results, total ){
                     test.ifError( err ); if( err ) return test.done();
    
                     // Only one result came back
@@ -1393,7 +1393,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             console.log("Running updateSingleConfig...");
 
-            configR.update( { name: 'eq', args: [ 'id', data.c2.id ] }, { configField: 'C2 - Config Field CHANGED', configValue: 'C2 - Config Value CHANGED' }, { multi: false }, function( err ){
+            configR.update( { type: 'eq', args: [ 'id', data.c2.id ] }, { configField: 'C2 - Config Field CHANGED', configValue: 'C2 - Config Value CHANGED' }, { multi: false }, function( err ){
 
               test.ifError( err ); if( err ) return test.done();
 
@@ -1462,7 +1462,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             console.log("Running updateMultipleConfig...");
 
-            configR.update( { name: 'eq', args: [ 'configField', "C2 - Config Field CHANGED" ] }, { configField: 'C2 - Config Field CHANGED AGAIN', 
+            configR.update( { type: 'eq', args: [ 'configField', "C2 - Config Field CHANGED" ] }, { configField: 'C2 - Config Field CHANGED AGAIN', 
               configValue: 'C2 - Config Value CHANGED AGAIN' 
             }, { multi: true }, function( err ){
 
@@ -1532,7 +1532,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             console.log("Running updateSingleAddress...");
 
-            addressesR.update( { name: 'eq', args: [ 'id', data.a1.id ] }, { street: 'bitton CHANGED' }, { multi: false }, function( err ){
+            addressesR.update( { type: 'eq', args: [ 'id', data.a1.id ] }, { street: 'bitton CHANGED' }, { multi: false }, function( err ){
 
               test.ifError( err ); if( err ) return test.done();
 
@@ -1597,7 +1597,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             // NOTE: This only works with 2.5 and up if using regexps
             // https://jira.mongodb.org/browse/SERVER-1155 (fixed in 2.5.3)
-            addressesR.update( { name: 'eq', args: [ 'city', 'perth' ] }, { city: 'perth2' }, { multi: true }, function( err ){
+            addressesR.update( { type: 'eq', args: [ 'city', 'perth' ] }, { city: 'perth2' }, { multi: true }, function( err ){
 
               test.ifError( err ); if( err ) return test.done();
 
@@ -1663,7 +1663,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             console.log("Running deleteSingleConfig...");
 
-            configR.delete( { name: 'eq', args: [ 'id', data.c2.id ] }, { multi: false }, function( err ){
+            configR.delete( { type: 'eq', args: [ 'id', data.c2.id ] }, { multi: false }, function( err ){
 
               test.ifError( err ); if( err ) return test.done();
 
@@ -1795,7 +1795,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             console.log("Running deleteSingleAddress...");
 
-            addressesR.delete( { name: 'eq', args: [ 'id', data.a3.id ] }, { multi: false }, function( err ){
+            addressesR.delete( { type: 'eq', args: [ 'id', data.a3.id ] }, { multi: false }, function( err ){
 
               test.ifError( err ); if( err ) return test.done();
 

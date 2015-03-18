@@ -277,7 +277,7 @@ Please note how the filter is an object that defines how data will be filtered. 
 This is a simple delete:
 
     people.delete(
-      { name: 'gt', args: [ 'age', 28 ] },
+      { type: 'gt', args: [ 'age', 28 ] },
       { multi: true },
       function( err, howMany, record ){
 
@@ -355,7 +355,7 @@ Here is a typical example of cursor usage:
 
             // If item 'Tony' is found, call `cb` with `breakFlag` set to
             // true, which will effectively interrupt the cycle
-            if( item.name === 'Tony') return cb( null, true );
+            if( item.type === 'Tony') return cb( null, true );
 
             cb( null );
           },
@@ -388,7 +388,7 @@ Using `each()` is the most convenient way to use a cursor.
 
 The first parameter in select, which up to this point in the documentation was was left as an empty object, is an object with the following parameters:
 
-* `conditions`. It's an object including the attribute `name` (a string representing the name of the conditional operation to perform) and `args` (an array containing the parameters to the operation). For example, `{ name: 'startsWith', args: [ 'surname', 'mob' ] },` will filter all record where the field `surname` starts with `mob`.
+* `conditions`. It's an object including the attribute `type` (a string representing the type of the conditional operation to perform) and `args` (an array containing the parameters to the operation). For example, `{ type: 'startsWith', args: [ 'surname', 'mob' ] },` will filter all record where the field `surname` starts with `mob`.
 * `ranges`. It's an object that can have the attributes `from`, `to` and `limit` set. All attributes are optional. For example `{ limit: 10 }`.
 * `sort`. It's an object where each key represents the field the sort will apply to. For each key, value can be `-1` (bigger to smaller)  or `1` (smaller to bigger).
 
@@ -408,14 +408,14 @@ A possible filtering parameter could be:
         age: 1
       }
       conditions: {
-        name: 'and',
+        type: 'and',
         args: [
           {
-            name: 'startsWith',
+            type: 'startsWith',
             args: [ 'name', 'to' ]
           },
           {
-            name: 'gt',
+            type: 'gt',
             args: [ 'age', 30 ]
           },
         ]
@@ -429,7 +429,7 @@ A possible filtering parameter could be:
 
 ### The `conditions` object
 
-The conditions object can have the following conditional operators (in `name`):
+The conditions object can have the following conditional operators (in `type`):
 
 * `and` -- all conditions in `args` need to be true
 * `or` -- at least one condition in `arts` needs to be true
@@ -448,22 +448,22 @@ And the following logical operators (where the value of the field called `args[0
 An example could be:
 
     {
-      name: 'and',
+      type: 'and',
       args: [
         {
-          name: 'startsWith',
+          type: 'startsWith',
           args: [ 'name', 'to' ]
         },
 
         { 
-          name: 'or',
+          type: 'or',
           args: [
             {
-              name: 'gt',
+              type: 'gt',
               args: [ 'age', 30 ]
             },            
             {
-              name: 'lt',
+              type: 'lt',
               args: [ 'age', 10 ]
             },
           ]
@@ -554,7 +554,7 @@ If you see carefully, `people` is defined like this:
 
 A layer is a simple Javascript object linked to a specific table. However, when defining the layer `people`, the layer `emails` isn't defined yet -- and yet, you might need to reference it while creating relationships between layers (like in this case: a person has multiple email addresses, but `emails` hasn't been created yet).
 
-The solution is to pass the string `'email'` for the `layer` property. When you run `SimpleDbLayer.initLayers()`, SimpleDbLayer will go through every `nested` option of every defined layer thanks to the registry, and will also work to 'resolve' the string (based on the table name: in this case, `emails`).
+The solution is to pass the string `'email'` for the `layer` property. When you run `SimpleDbLayer.initLayers()`, SimpleDbLayer will go through every `nested` option of every defined layer thanks to the registry, and will also work to 'resolve' the string (based on the table's name: in this case, `emails`).
 
 ### Single lookup
 
@@ -587,14 +587,14 @@ For example, you can run a query like this:
 
     
     var conditions = {
-      name: 'and',
+      type: 'and',
       args: [
         {
-          name: 'startsWith',
+          type: 'startsWith',
           args: [ 'emails.address', 'ton' ]
         },
         {
-          name: 'gt',
+          type: 'gt',
           args: [ 'age', 30 ]
         },
       ]
@@ -674,7 +674,7 @@ Here is a practical example of what happens when adding data with nested tables:
 
       var opt = { children: true };
   
-      emails.select( { conditions: { name: 'eq', args: [ 'id', 1 ] } }, opt, function( err, data ){
+      emails.select( { conditions: { type: 'eq', args: [ 'id', 1 ] } }, opt, function( err, data ){
         if( err ) return cb( err );
 
         cb( null, data[ 0 ]);
@@ -684,7 +684,7 @@ Here is a practical example of what happens when adding data with nested tables:
 
     function deleteEmailsStartingWithTon( cb ){
 
-      emails.delete( {  name: 'and', args: [  { name: 'startsWith', args: [ 'address', 'TON' ] } ] }, { multi: true }, function( err, n ){
+      emails.delete( {  type: 'and', args: [  { type: 'startsWith', args: [ 'address', 'TON' ] } ] }, { multi: true }, function( err, n ){
         if( err ) return cb( err );
         cb( null, n );
       });

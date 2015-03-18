@@ -345,11 +345,11 @@ var SimpleDbLayer = declare( EventEmitter, {
       o = {};
     } else if( keys.length === 1 ){
       var key = keys[ 0 ];
-      o = { name: 'eq', args: [ key, conditions[ key ] ] };
+      o = { type: 'eq', args: [ key, conditions[ key ] ] };
     } else {
-      o = { name: 'and', args: [] };
+      o = { type: 'and', args: [] };
       keys.forEach( function( key ){
-        o.args.push( { name: 'eq', args: [ key, conditions[ key ] ] } );
+        o.args.push( { type: 'eq', args: [ key, conditions[ key ] ] } );
       });
     }
 
@@ -405,11 +405,11 @@ var SimpleDbLayer = declare( EventEmitter, {
       o = {};
     } else if( keys.length === 1 ){
       var key = keys[ 0 ];
-      o = { name: 'eq', args: [ key, conditions[ key ] ] };
+      o = { type: 'eq', args: [ key, conditions[ key ] ] };
     } else {
-      o = { name: 'and', args: [] };
+      o = { type: 'and', args: [] };
       keys.forEach( function( key ){
-        o.args.push( { name: 'eq', args: [ key, conditions[ key ] ] } );
+        o.args.push( { type: 'eq', args: [ key, conditions[ key ] ] } );
       });
     }
 
@@ -473,11 +473,11 @@ var SimpleDbLayer = declare( EventEmitter, {
       o = {};
     } else if( keys.length === 1 ){
       var key = keys[ 0 ];
-      o = { name: 'eq', args: [ key, conditions[ key ] ] };
+      o = { type: 'eq', args: [ key, conditions[ key ] ] };
     } else {
-      o = { name: 'and', args: [] };
+      o = { type: 'and', args: [] };
       keys.forEach( function( key ){
-        o.args.push( { name: 'eq', args: [ key, conditions[ key ] ] } );
+        o.args.push( { type: 'eq', args: [ key, conditions[ key ] ] } );
       });
     }
 
