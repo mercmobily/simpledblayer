@@ -921,7 +921,7 @@ Since there is no `sort` option specified, you are _guaranteed_ that `list` will
 
 When inserting a record, you can decide its position by passing a `position` parameter to the `insert()` call. `position` can have:
 
-* `where`. It can be `first`, `last` or `before`. If it's `before`, then the next parameter `beforeId` comes into play. Default: `last`.
+* `where`. It can be `start`, `end` or `before`. If it's `before`, then the next parameter `beforeId` comes into play. Default: `end`.
 * `beforeId`. If `where` is `before`, then the new record will be placed before `beforeId`.
 
 So, for example:
@@ -932,7 +932,7 @@ So, for example:
     var dion = { id: 5, name: 'Dion', surname: 'Patelis', age: 38 }
 
     // The record will be placed first
-    people.insert( sara, { position: 'first' }, function( err, sara ){
+    people.insert( sara, { position: 'start' }, function( err, sara ){
       if( err ) return cb( err );
 
       // The record will be placed before ID 2 ('Chiara')
@@ -941,7 +941,7 @@ So, for example:
         // ...
 
         // The record will be placed last
-        people.insert( dion, { position: 'last' }, function( err, dion ){
+        people.insert( dion, { position: 'end' }, function( err, dion ){
           if( err ) return cb( err );
           // ...
 ````
@@ -963,7 +963,7 @@ To reposition a record, just run `reposition`:
 The call `reposition( record, where, beforeId )` will take the following parameters: 
 
 * `record`. This is the record that will be repositioned.
-* `where`. It can be `first`, `last`, or `before`.
+* `where`. It can be `start`, `end`, or `before`.
 * `beforeId`. If `where` is `before`, then `record` will be positioned before the one with ID `beforeId`.
 
 ## Nested record positioning
