@@ -23,6 +23,10 @@ Limitations:
 
 Once again, all these features (and limitations) are tailored around the fact that SimpleDbLayer is a module that enables [JsonRestStores](https://github.com/mercmobily/JsonRestStores) to have several (thin) database layers.
 
+
+DOCUMENTATION TODO: Specify that SimpleDbLayer inherits from EventEmitterCollector, and emits collecting events before and after operations. This allows field manipulation on the fly.
+
+
 # Database-specific adapters
 
 At the moment, here is the list of database-specific adapters:
@@ -41,7 +45,6 @@ SimpleDbLayer is exactly what it says: a (thin) database layer. Most of the othe
     user.save();`.
 
 This is _not_ how SimpleDbLayer works: you don't define models, custom methods for specific models, etc. SimpleDbLayer is a _thin_ layer around database data. In SimpleDbLayer, each managed database table is mapped to exacly _one plain database object_:
-
 
     // ...Include module, create database connection, etc.
     var DbLayer = SimpleDbLayer.extend( SimpleDbLayerMongo, { db: db } );

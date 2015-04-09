@@ -18,11 +18,12 @@ var
 , async = require('async')
 , debug = require('debug')
 , EventEmitter = require('events').EventEmitter
+, EventEmitterCollector = require("eventemittercollector")
 ;
 
 var consolelog = debug( 'simpledblayer:main');
 
-var SimpleDbLayer = declare( EventEmitter, {
+var SimpleDbLayer = declare( EventEmitterCollector, {
 
   // Mandatory properties
   table: null,
