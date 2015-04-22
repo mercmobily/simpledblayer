@@ -1034,7 +1034,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
         prepareGround( function(){
 
           console.log("INITIALISING LAYERS..." );
-          g.Layer.initLayers();
+          g.Layer.init();
  
           // Insert normal record (configR)
 

@@ -176,7 +176,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
       var t = childNestedParams.layer.table;
       if( typeof( childNestedParams.layer ) === 'string' ){
         t = childNestedParams.layer;
-        childNestedParams.layer = self.constructor.registry[ childNestedParams.layer ];
+        childNestedParams.layer = SimpleDbLayer.registry[ childNestedParams.layer ];
       }
 
       if( !childNestedParams.layer ){
@@ -529,35 +529,13 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
 // **************************************************************************
 //                        CLASS FUNCTIONS
 // **************************************************************************
-// All of these functions operate on the premise that they have a
-// `registry` variable attached to the constructor itself. This registry is
-// used by makeTableHashes() to look up a layer object from a table:
-// 
-//   if( typeof( childNestedParams.layer ) === 'string' ){
-//      childNestedParams.layer = self.constructor.registry[ childNestedParams.layer ];
-//    }
-//
-// So, it's absolutely crucial that db-specific mixins do their job properly, and
-//
-// 1) Add a registry to their constructing function: `MongoMixin.registry = {};`
-// 2) Add each created instance to the registry by having this in their constructor:
-//    constructor: function(){
-//      // ...
-//     `MongoMixin.registry[ self.table ] = self;`
-//
-// This all works on the premise that when using simpleDeclare(), the new constructor
-// also inherits all class method from the parent.
-// While the function themselves will be different, when accessing `this` from
-// withing DbLayer.getLayer(), this.registry will be MongoMixin's (which is what
-// we want).
-//
 // **************************************************************************
 
 
 // Initialise all layers, creating relationship hashes
-SimpleDbLayer.initLayers = function( Layer ){
+SimpleDbLayer.init = function(){
 
-  Layer = Layer || this;
+  var Layer = SimpleDbLayer; // || this;
   
   Object.keys( Layer.registry ).forEach( function( key ){
     var layer = Layer.registry[ key ];
@@ -566,7 +544,7 @@ SimpleDbLayer.initLayers = function( Layer ){
 };
 // Get layer from the class' registry
 SimpleDbLayer.getLayer = function( tableName ){
-  var Layer = this;
+  var Layer = SimpleDbLayer;
 
   if( typeof( Layer.registry ) === 'undefined' ) return undefined;
   return Layer.registry[ tableName ];
@@ -574,14 +552,14 @@ SimpleDbLayer.getLayer = function( tableName ){
 
 // Get all layers as a hash
 SimpleDbLayer.getAllLayers = function(){
-  var Layer = this;
+  var Layer = SimpleDbLayer;
   
   return Layer.registry;
 };
 
 SimpleDbLayer.generateSchemaIndexesAllLayers = function( options, cb ){
 
-  var Layer = this;
+  var Layer = SimpleDbLayer;
   
   // This will contain the array of functions, one per layer
   var indexMakers = [];
@@ -602,7 +580,7 @@ SimpleDbLayer.generateSchemaIndexesAllLayers = function( options, cb ){
 
 SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
 
-  var Layer = this;
+  var Layer = SimpleDbLayer;
   
   // This will contain the array of functions, one per layer
   var indexMakers = [];
@@ -621,6 +599,6 @@ SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
   async.series( indexMakers, cb );
 };
 
-
+SimpleDbLayer.registry = {};
 exports = module.exports = SimpleDbLayer;
 

@@ -535,9 +535,9 @@ You can now define a layer as "child" of another one:
       ],
     });
 
-    SimpleDbLayer.initLayers( DbLayer ); // <--- IMPORTANT!
+    SimpleDbLayer.init(); // <--- IMPORTANT!
 
-**It's absolutely crucial that you run `SimpleDbLayer.initLayers()` before running queries if you have nested layers.** 
+**It's absolutely crucial that you run `SimpleDbLayer.init()` before running queries if you have nested layers.** 
 
 Whenever you load a record from the `people` table, you will also get a `_children` attribute for that object that will include all children data. `lookup`s will become one single object, whereas `multiple`s will become array of objects. Note: children are always loaded into `_children`, which cannot be changed. This is to keep things sane code-wise and data-wise.
 
@@ -557,7 +557,7 @@ If you see carefully, `people` is defined like this:
 
 A layer is a simple Javascript object linked to a specific table. However, when defining the layer `people`, the layer `emails` isn't defined yet -- and yet, you might need to reference it while creating relationships between layers (like in this case: a person has multiple email addresses, but `emails` hasn't been created yet).
 
-The solution is to pass the string `'email'` for the `layer` property. When you run `SimpleDbLayer.initLayers()`, SimpleDbLayer will go through every `nested` option of every defined layer thanks to the registry, and will also work to 'resolve' the string (based on the table's name: in this case, `emails`).
+The solution is to pass the string `'email'` for the `layer` property. When you run `SimpleDbLayer.init()`, SimpleDbLayer will go through every `nested` option of every defined layer thanks to the registry, and will also work to 'resolve' the string (based on the table's name: in this case, `emails`).
 
 ### Single lookup
 
