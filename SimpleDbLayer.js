@@ -500,7 +500,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     cb( null, null );
   },
 
-  reposition: function( record, beforeId, cb ){
+  reposition: function( record, where, beforeId, cb ){
     if( typeof( cb ) === 'undefined' ) cb = function(){};
 
     cb( null );
