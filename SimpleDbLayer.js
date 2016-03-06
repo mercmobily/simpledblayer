@@ -11,7 +11,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-var 
+var
   dummy
 
 , declare = require('simpledeclare')
@@ -41,9 +41,9 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
   extraIndexes: [],
   indexBase: [],
   strictSchemaOnFetch: true,
-  fetchChildrenByDefault: false,  
+  fetchChildrenByDefault: false,
 
-  // Fields that will be redefined in constructor, here for aesthetic reasons 
+  // Fields that will be redefined in constructor, here for aesthetic reasons
   childrenTablesHash: {},
   lookupChildrenTablesHash: {},
   multipleChildrenTablesHash: {},
@@ -62,10 +62,10 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     self._indexGroups = { __main: { indexes: {}, indexBase: self.indexBase } };
     self._searchableHash = {};
     self._searchableHashSchema = {};
-   
+
     // Mixin values from constructor.
     for( var k in options ){
-      if( !options.hasOwnProperty( k ) ) continue; 
+      if( !options.hasOwnProperty( k ) ) continue;
       self[ k ] = options[ k ];
     }
 
@@ -100,14 +100,14 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     self.lookupChildrenTablesHash = {};
     self.multipleChildrenTablesHash = {};
     self.parentTablesArray = [];
-   
+
     // Make field _really_ searchable by adding it to _searchableHash and _indexGroups
     Object.keys( self.schema.structure ).forEach( function( field ) {
       if( self.schema.structure[ field ].searchable ) self._makeFieldSearchable( field );
     });
-    
+
     // Add the extra indexes as defined in extraIndexes. Note that this won't
-    // affect `searchable` -- this is just to add indexes. 
+    // affect `searchable` -- this is just to add indexes.
     Object.keys( self.extraIndexes ).forEach( function( indexName ) {
       var index = self.extraIndexes[ indexName ];
 
@@ -152,7 +152,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     if( entryLayerName ){
       self._indexGroups[ indexGroupName ] = self._indexGroups[ indexGroupName ] || { indexes: {}, indexBase: entryLayer.indexBase };
     }
-    
+
     self._indexGroups[ indexGroupName ].indexes[ indexName ] = newEntry;
     self._searchableHash[ fullName ] = entry;
     self._searchableHashSchema[ fullName ] = entryLayer.schema;
@@ -230,7 +230,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
       consolelog("The child Layer", childLayer.table, "at this point has the following parents: ", childLayer.parentTablesArray );
 
       consolelog("Adding entries to father's _searchableHash to make sure that searchable children fields are searchable");
-      
+
       // Making sure that all keys in join are marked as searchable in children
       if( childNestedParams.type === 'multiple'){
         Object.keys( childNestedParams.join ).forEach( function( key ){
@@ -256,11 +256,11 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
         if( entry.searchable ){
           consolelog("Field is searchable! So: ", subName + "." + fieldName, "will be searchable in father table" );
           self._makeFieldSearchable( fieldName, childLayer, subName );
-        }        
-      }); 
+        }
+      });
 
 
-      // Add the extra indexes as defined in extraIndexes 
+      // Add the extra indexes as defined in extraIndexes
       Object.keys( childLayer.extraIndexes ).forEach( function( indexName ) {
         var index = childLayer.extraIndexes[ indexName ];
         var indexOptions = index.options;
@@ -279,7 +279,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
       });
 
 
-      
+
       consolelog("Making sure that join keys are searchable and in child's _searchableHash:" );
 
       // Makes sure that nested tables have ALL of the right indexes
@@ -287,7 +287,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
       //if( childNestedParams.type === 'lookup' ) var field = childNestedParams.localField;
       //else var field = childNestedParams.layer;
 
-      
+
       consolelog("Parents searchable hash after cure:", parent._searchableHash );
 
       consolelog("Parents _indexGroups after cure:", parent._indexGroups );
@@ -304,7 +304,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
 
     // Prep work so that all checks are easy and straightforward
     if( typeof( ranges ) !== 'object' ) ranges = {};
-    var hardLimit =  self.hardLimitOnQueries || Infinity; 
+    var hardLimit =  self.hardLimitOnQueries || Infinity;
 
     // Set saneRanges up
     var saneRanges = {};
@@ -318,7 +318,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
   },
 
   selectById: function( id, options, cb ){
-    
+
     if( typeof( options ) === 'function' ){
       cb = options;
       options = {};
@@ -368,17 +368,17 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     } else if( typeof( options ) !== 'object' || options === null ){
       throw( new Error("The options parameter must be a non-null object") );
     }
-     
+
     if( options.useCursor ){
       cb( null, { next: function( done ){ done( null, null ); } } );
     } else {
       cb( null, [] );
     }
-       
+
   },
 
   updateById: function( id, updateObject, options, cb ){
-    
+
     if( typeof( options ) === 'function' ){
       cb = options;
       options = {};
@@ -428,8 +428,8 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     } else if( typeof( options ) !== 'object' || options === null ){
       throw( new Error("The options parameter must be a non-null object") );
     }
-      
-    cb( null, 0, record );    
+
+    cb( null, 0, record );
   },
 
   insert: function( record, options, cb ){
@@ -442,11 +442,11 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
       throw( new Error("The options parameter must be a non-null object") );
     }
 
-    cb( null, record );  
+    cb( null, record );
   },
 
   deleteById: function( id, updateObject, options, cb ){
-    
+
     if( typeof( options ) === 'function' ){
       cb = options;
       options = {};
@@ -536,7 +536,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
 SimpleDbLayer.init = function(){
 
   var Layer = SimpleDbLayer; // || this;
-  
+
   Object.keys( Layer.registry ).forEach( function( key ){
     var layer = Layer.registry[ key ];
     layer._makeTablesHashes();
@@ -553,14 +553,14 @@ SimpleDbLayer.getLayer = function( tableName ){
 // Get all layers as a hash
 SimpleDbLayer.getAllLayers = function(){
   var Layer = SimpleDbLayer;
-  
+
   return Layer.registry;
 };
 
 SimpleDbLayer.generateSchemaIndexesAllLayers = function( options, cb ){
 
   var Layer = SimpleDbLayer;
-  
+
   // This will contain the array of functions, one per layer
   var indexMakers = [];
 
@@ -568,7 +568,7 @@ SimpleDbLayer.generateSchemaIndexesAllLayers = function( options, cb ){
   Object.keys( Layer.getAllLayers() ).forEach( function( table ){
 
     var layer = Layer.getLayer( table );
-    
+
     indexMakers.push( function( cb ){
       layer.generateSchemaIndexes( options, cb );
     });
@@ -581,7 +581,7 @@ SimpleDbLayer.generateSchemaIndexesAllLayers = function( options, cb ){
 SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
 
   var Layer = SimpleDbLayer;
-  
+
   // This will contain the array of functions, one per layer
   var indexMakers = [];
 
@@ -589,7 +589,7 @@ SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
   Object.keys( Layer.getAllLayers() ).forEach( function( table ){
 
     var layer = Layer.getLayer( table );
-    
+
     indexMakers.push( function( cb ){
       layer.dropAllIndexes( cb );
     });
@@ -601,4 +601,3 @@ SimpleDbLayer.dropAllIndexesAllLayers = function( options, cb ){
 
 SimpleDbLayer.registry = {};
 exports = module.exports = SimpleDbLayer;
-
