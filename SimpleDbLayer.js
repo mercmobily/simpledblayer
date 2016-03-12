@@ -11,6 +11,274 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+
+/*
+
+To make it easier for specialised DB mixins to deal with indexes, this class will provide some variables and
+functions to make things easier for the db-specific mixins.
+
+Imagine having the following stores:
+
+var Videos = declare( [ HotStore ], {
+
+      // Important attributes that will affect indexing
+      schema: new HotSchema({
+        workspaceId  : { type: 'id', required: true, searchable: true },
+        title        : { type: 'string', required: true, notEmpty: true, trim: 128, searchable: true },
+        location     : { type: 'geo', geoType: 'Point', searchable: true, indexDirection: '2dsphere' },
+        published    : { type: 'boolean', required: true, default: false },
+      }),
+      indexBase: [ 'workspaceId'],
+      nested: [
+        {
+          type: 'multiple',
+          store: 'videosTags',
+          join: { videoId: 'id' },
+        },
+      ],
+
+      // Other info
+      storeName:  'videos',
+      publicURL: '/videos/:id',
+      handleGet: true,
+      handleGetQuery: true,
+      strictSchemaOnFetch: false,
+    });
+    stores.videos = new Videos();
+
+    // Important attributes that will affect indexing
+    var VideosTags = declare( [ HotStore ], {
+
+      schema: new HotSchema({
+        tagName      : { type: 'string', notEmpty: true, trim: 32, searchable: true, validator: tagValidator },
+        tagType      : { type: 'number', required: true }, // 1: normal, 2: super
+      }),
+      nested: [
+        {
+          type: 'lookup',
+          localField: 'videoId',
+          store: 'videos',
+        }
+      ],
+
+      storeName:  'videosTags',
+      publicURL: '/videos/:videoId/tags/:id',
+      hotExpose: true,
+      handleGet: true,
+      handleGetQuery: true,
+    });
+    stores.videosTags = new VideosTags();
+
+They are:
+
+# _indexGroups: { },
+
+This is the most important tables of all. It's only really complete once init() is called, since driver-specific mixins will add things depending on nested values.
+
+In the case of the tables above, they will contain:
+
+
+{
+  __main: {
+
+    indexes: {
+
+      id: {
+        fields: {
+          id: {
+            entry: {
+              type: 'id',
+              required: true,
+              indexOptions: {
+                unique: true
+              },
+              searchable: true
+            },
+            direction: 1
+          }
+        },
+        options: {
+          unique: true
+        }
+      },
+
+      workspaceId: {
+        fields: {
+          workspaceId: {
+            entry: {
+              type: 'id',
+              required: true,
+              searchable: true
+            },
+            direction: 1
+          }
+        },
+        options: {}
+      },
+
+      title: {
+        fields: {
+          title: {
+            entry: {
+              type: 'string',
+              required: true,
+              notEmpty: true,
+              trim: 128,
+              searchable: true
+            },
+            direction: 1
+          }
+        },
+        options: {}
+      },
+
+      location: {
+        fields: {
+          location: {
+            entry: {
+              type: 'geo',
+              geoType: 'Point',
+              {
+                type: 'geo',
+                geoType: 'Point',
+                searchable: true,
+                indexDirection: '2dsphere'
+              },
+              direction: '2dsphere'
+            }
+          },
+          options: {}
+        }
+      },
+      indexBase: ['workspaceId']
+    },
+
+    videosTags: {
+
+      indexes: {
+
+        tagName: {
+          fields: {
+            'tagName': {
+              entry: {
+                type: 'string',
+                notEmpty: true,
+                trim: 32,
+                searchable: true
+              },
+              direction: 1
+            }
+          },
+          options: {}
+        },
+
+        videoId: {
+          fields: {
+            'videoId': {
+              entry: {
+                type: 'id',
+                searchable: true
+              },
+              direction: 1
+            }
+          },
+          options: {}
+        },
+
+        id: {
+          fields: {
+            'id': {
+              entry: {
+                type: 'id',
+                required: true,
+                indexOptions: {
+                  unique: true
+                },
+                searchable: true
+              },
+              direction: 1
+            }
+          },
+          options: {
+            unique: true
+          }
+        }
+
+      },
+      indexBase: []
+    }
+  }
+
+
+# _searchableHash: {},
+
+This is a hash with all of the searchable fields. They may include fields with full paths if a nested table is present, and each key is associated the full schema definition for that field.
+
+{
+  id: {
+    type: 'id',
+    required: true,
+    indexOptions: {
+      unique: true
+    },
+    searchable: true
+  },
+  workspaceId: {
+    type: 'id',
+    required: true,
+    searchable: true
+  },
+  title: {
+    type: 'string',
+    required: true,
+    notEmpty: true,
+    trim: 128,
+    searchable: true
+  },
+  location: {
+    type: 'geo',
+    geoType: 'Point',
+    searchable: true,
+    indexDirection: '2dsphere'
+  },
+  published: {
+    type: 'boolean',
+    required: true,
+    default: false,
+    searchable: true
+  },
+  'videosTags.tagName': {
+    type: 'string',
+    notEmpty: true,
+    trim: 32,
+    searchable: true,
+    validator: [Function: tagValidator]
+  },
+  'videosTags.tagType': {
+    type: 'number',
+    required: true,
+    searchable: true
+  },
+  'videosTags.videoId': {
+    type: 'id',
+    searchable: true
+  },
+  'videosTags.id': {
+    type: 'id',
+    required: true,
+    indexOptions: {
+      unique: true
+    },
+    searchable: true
+  },
+}
+
+# _searchableHashSchema: {},
+
+Same as above. However, rather than having the schema definition for a specific item, it has the full schema definition for the whole layer. This is needed by mongoMixin to
+
+*/
+
 var
   dummy
 
@@ -57,9 +325,9 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
 
     var self = this;
 
+
     options = options || {};
 
-    self._indexGroups = { __main: { indexes: {}, indexBase: self.indexBase } };
     self._searchableHash = {};
     self._searchableHashSchema = {};
 
@@ -69,11 +337,19 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
       self[ k ] = options[ k ];
     }
 
+    self._indexGroups = { __main: { indexes: {}, indexBase: self.indexBase } };
+
+    //console.log("CONSTRUCTING: ", self.table, "WHICH IS:", self );
+
+
     // Make sure 'table', 'schema', 'db' exist in the object *somehow*
     [ 'table', 'schema', 'idProperty', 'db' ].forEach( function( k ){
       if( ! self[ k ] )
         throw( new Error("SimpleDbLayer's constructor requires " + k + " defined as attribute") );
     });
+
+    //console.log("WELL INDEXBASE NOW SHOULD BE OK FOR", self.table," AND IT IS ", require('util').inspect( self._indexGroups, { depth: 10 }), self );
+
 
     // Check that schema has idProperty defined
     if( typeof( self.schema.structure[ self.idProperty ] ) === 'undefined' ){
@@ -125,6 +401,13 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
       });
       self._indexGroups.__main.indexes[ indexName ] = { extra: true, fields: fields, options: indexOptions };
     });
+
+/*
+    consolelog("Variable _indexGroups for ", this.table, "IS", require('util').inspect( self._indexGroups, { depth: 10 } ) );
+    consolelog("Variable _searchableHash for ", this.table, "IS", require('util').inspect( self._searchableHash, { depth: 10 } ) );
+    consolelog("Variable _searchableHashSchema for ", this.table, "IS", require('util').inspect( self._searchableHashSchema, { depth: 10 } ) );
+*/
+
   },
 
   _makeFieldSearchable: function( entryKey, entryLayer, entryLayerName ){
@@ -146,7 +429,8 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     var indexOptions = typeof( entry.indexOptions ) !== 'undefined' ? entry.indexOptions : {};
 
     var newEntry = { fields: {}, options: indexOptions };
-    newEntry.fields[ fullName ] = { entry: entry, direction: indexDirection };
+    //newEntry.fields[ fullName ] = { entry: entry, direction: indexDirection };
+    newEntry.fields[ entryKey ] = { entry: entry, direction: indexDirection };
 
     // Not in the main group: make up entry with `indexGroupName` which will inclde the indexBase
     if( entryLayerName ){
@@ -156,6 +440,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     self._indexGroups[ indexGroupName ].indexes[ indexName ] = newEntry;
     self._searchableHash[ fullName ] = entry;
     self._searchableHashSchema[ fullName ] = entryLayer.schema;
+
   },
 
   _makeTablesHashes: function(){
@@ -293,7 +578,12 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
       consolelog("Parents _indexGroups after cure:", parent._indexGroups );
 
     });
-    consolelog("End of scanning");
+    consolelog("End of scanning:", this.table );
+
+    consolelog("Variable _indexGroups for ", this.table, "IS", require('util').inspect( self._indexGroups, { depth: 10 } ) );
+    consolelog("Variable _searchableHash for ", this.table, "IS", require('util').inspect( self._searchableHash, { depth: 10 } ) );
+    consolelog("Variable _searchableHashSchema for ", this.table, "IS", require('util').inspect( self._searchableHashSchema, { depth: 10 } ) );
+
 
   },
 

@@ -14,7 +14,7 @@ TEST WISHLIST:
 --------------
 
 * Instancing twice on the same table should throw
-* Custom SchemaError works 
+* Custom SchemaError works
 * INSERT: skipValidation works
 * UPDATE: skipValidation works
 * cursor.each(), with break
@@ -31,7 +31,7 @@ TEST WISHLIST:
   * positionBase has element that is not in schema: throw
 * Table hashes (after running layer._makeTablesHashes() )
   * _searchableHash is enriched with children's earchable fields, with path (lookup and multi)
-  * childrenTablesHash, lookupChildrenTablesHash, multipleChildrenTablesHash, parentTablesArray are correct 
+  * childrenTablesHash, lookupChildrenTablesHash, multipleChildrenTablesHash, parentTablesArray are correct
 * Children:
   * Update (single) addressesR: does the father get updated/deleted?
   * Update (mass) addressesR: does the father get updated/deleted?
@@ -39,7 +39,7 @@ TEST WISHLIST:
   * Update record: do children (single and lookup) get updated correctly?
 */
 
-var 
+var
   dummy
 
 , declare = require('simpledeclare')
@@ -130,7 +130,7 @@ var compareCollections = function( test, a, b ){
   }
 
   //test.ok( equal, "Record sets do not match" );
- 
+
 }
 
 var populateCollection = function( data, collection, cb ){
@@ -155,7 +155,7 @@ var populateCollection = function( data, collection, cb ){
 
 
 var clearAndPopulateTestCollection = function( g, cb ){
-  
+
   g.people.delete( { }, { multi: true }, function( err ){
     if( err ) return cb( err );
 
@@ -168,7 +168,7 @@ var clearAndPopulateTestCollection = function( g, cb ){
 }
 
 exports.get = function( getDbInfo, closeDb, makeExtraTests ){
-  
+
   var tests;
   var g = {};
 
@@ -220,7 +220,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
     "create constructors and layers": function( test ){
       var self = this;
 
-      try { 
+      try {
         g.Layer = declare( [ SimpleDbLayer, g.driver.DriverMixin ], { db: g.driver.db });
 
         g.people = new g.Layer( { table: 'people', schema: g.commonPeopleSchema, idProperty: 'name' } );
@@ -247,7 +247,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       test.ok( fakeDb === peopleRewriteDb.db );
 
       // Test that not passing `db` anywhere throws
-      test.throws( function(){        
+      test.throws( function(){
         new LayerNoDb( { table: 'peopleNoDb', schema: g.commonPeopleSchema, idProperty: 'name' } );
       }, undefined, "Constructing a collection without definind DB in prototype or constructions should fail");
 
@@ -275,21 +275,21 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err ); if( err ) return test.done();
 
-        g.people.select( { conditions: 
+        g.people.select( { conditions:
           { type: 'and', args: [
             { type: 'eq', args: [ 'name', 'Tony' ] },
             { type: 'eq', args: [ 'surname', 'Mobily' ] },
             { type: 'eq', args: [ 'age', 37 ] },
           ] }
-        }, function( err, results, total ){ 
-                  
+        }, function( err, results, total ){
+
           test.ifError( err ); if( err ) return test.done();
 
           var r = [ { name: 'Tony', surname: 'Mobily',  age: 37 } ];
 
           test.equal( total, 1 );
           compareCollections( test, results, r );
-          
+
           test.done();
         })
 
@@ -339,7 +339,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             });
           });
         })
-        
+
       })
     },
 
@@ -385,7 +385,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
 
               g.people.select( { conditions: { type: 'and', args: [
-                { type: 'gt', args: [ 'age', 22 ] },                
+                { type: 'gt', args: [ 'age', 22 ] },
                 { type: 'lt', args: [ 'age', 60 ] },
               ] } }, function( err, results, total ){
 
@@ -402,13 +402,13 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           })
 
         });
-        
+
       })
     },
 
 
     "selects, ranges and limits": function( test ){
-     
+
        clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err ); if( err ) return test.done();
         g.people.select( { ranges: { limit: 1 } }, function( err, results, total, grandTotal ){
@@ -464,9 +464,9 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           })
 
         });
-        
+
       })
-    
+
     },
 
     "selects, sort": function( test ){
@@ -529,11 +529,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
         g.people.select( { sort: { name: 1 } }, { useCursor: true }, function( err, cursor, total ){
           test.ifError( err ); if( err ) return test.done();
- 
+
           test.notEqual( cursor, null );
           test.notEqual( cursor, undefined );
           test.equal( total, 4 );
-          
+
           var r =  [
             { name: 'Chiara',    surname: 'Mobily',     age: 22 },
             { name: 'Daniela',   surname: 'Mobily',     age: 64 },
@@ -543,23 +543,23 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           cursor.next( function( err, person ){
             test.ifError( err ); if( err ) return test.done();
             test.deepEqual( person, r[ 0 ] );
-  
+
             cursor.next( function( err, person ){
               test.ifError( err ); if( err ) return test.done();
               test.deepEqual( person, r[ 1 ] );
-  
+
               cursor.next( function( err, person ){
                 test.ifError( err ); if( err ) return test.done();
                 test.deepEqual( person, r[ 2 ] );
-  
+
                 cursor.next( function( err, person ){
                   test.ifError( err ); if( err ) return test.done();
                   test.deepEqual( person, r[ 3 ] );
-  
+
                   cursor.next( function( err, person ){
                     test.ifError( err ); if( err ) return test.done();
                     test.deepEqual( person, null );
-  
+
                     test.done();
                   });
                 });
@@ -577,11 +577,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
         g.people.select( { sort: { name: 1 } }, { useCursor: true }, function( err, cursor, total ){
           test.ifError( err ); if( err ) return test.done();
- 
+
           test.notEqual( cursor, null );
           test.notEqual( cursor, undefined );
           test.equal( total, 4 );
-          
+
           var r =  [
             { name: 'Chiara',    surname: 'Mobily',     age: 22 },
             { name: 'Daniela',   surname: 'Mobily',     age: 64 },
@@ -615,11 +615,11 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
         g.people.select( { sort: { name: 1 } }, { useCursor: true }, function( err, cursor, total ){
           test.ifError( err ); if( err ) return test.done();
- 
+
           test.notEqual( cursor, null );
           test.notEqual( cursor, undefined );
           test.equal( total, 4 );
-          
+
           var r =  [
             { name: 'Chiara',    surname: 'Mobily',     age: 22 },
             { name: 'Daniela',   surname: 'Mobily',     age: 64 },
@@ -646,13 +646,13 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
 
     "deletes": function( test ){
-    
+
       clearAndPopulateTestCollection( g, function( err ){
         test.ifError( err ); if( err ) return test.done();
 
         g.people.select( { },  function( err, results, total ){
           test.ifError( err ); if( err ) return test.done();
-  
+
           var r =  [
             { name: 'Chiara',    surname: 'Mobily',     age: 22 },
             { name: 'Tony',      surname: 'Mobily',     age: 37 },
@@ -662,20 +662,20 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
           compareCollections( test, results, r );
           test.equal( total, 4 );
-                      
+
           g.people.delete( { type: 'eq', args: [ 'name', 'STOCAZZO' ] },  function( err, howMany ){
             test.ifError( err ); if( err ) return test.done();
- 
+
             test.equal( howMany, 0 );
 
             g.people.delete( { type: 'eq', args: [ 'name', 'Tony' ] },  function( err, howMany ){
               test.ifError( err ); if( err ) return test.done();
-   
+
               test.equal( howMany, 1 );
-  
+
               g.people.select( { },  function( err, results, total ){
                 test.ifError( err ); if( err ) return test.done();
-    
+
                 var r =  [
                   { name: 'Chiara',    surname: 'Mobily',     age: 22 },
                   { name: 'Sara',      surname: 'Connor',     age: 14 },
@@ -687,26 +687,26 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                 g.people.delete( { type: 'eq', args: [ 'surname', 'Mobily' ] }, { multi: true }, function( err, howMany){
                   test.ifError( err ); if( err ) return test.done();
-    
+
                   test.equal( howMany, 2 );
-  
+
                   g.people.select( { },  function( err, results, total ){
                     test.ifError( err ); if( err ) return test.done();
-    
+
                     var r =  [
                       { name: 'Sara',      surname: 'Connor',     age: 14 },
                     ];
 
                     compareCollections( test, results, r );
                     test.equal( total, 1 );
-  
+
                     test.done();
                   })
                 });
               })
             })
           });
-        }); 
+        });
       })
     },
 
@@ -721,7 +721,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             { type: 'eq', args: [ 'surname', 'Mobily' ] },
             { type: 'or', args: [
               { type: 'eq', args: [ 'age', 22 ] },
-              { type: 'eq', args: [ 'age', 37 ] },            
+              { type: 'eq', args: [ 'age', 37 ] },
             ] },
           ] }
         }, function( err, results, total ){
@@ -774,7 +774,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             people2.select( { sort: { age: 1 } }, function( err, results, total, grandTotal ){
               test.ifError( err ); if( err ) return test.done();
 
-              var r = 
+              var r =
                 [ { name: 'Sara', surname: 'Connor', age: 14 },
                   { name: 'Chiara', surname: 'Mobily', age: 22 } ]
               ;
@@ -882,7 +882,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 test.equal( total, 4 );
 
                 g.people.update( { type: 'eq', args: [ 'name', 'Tony' ] }, { name: 'Tony', surname: 'Sobily' }, { deleteUnsetFields: true }, function( err, howMany ){
-                  
+
                   test.ifError( err ); if( err ) return test.done();
 
                   test.equal( howMany, 1 );
@@ -929,30 +929,30 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
               type: 'multiple',
             },
 
-            { 
+            {
               layer: 'configR',
-              layerField: 'id', 
+              layerField: 'id',
               localField: 'configId',
               type: 'lookup',
             },
 
-            { 
+            {
               layer: 'peopleR',
-              layerField: 'id', 
+              layerField: 'id',
               localField: 'motherId',
               type: 'lookup',
             },
 
           ]
         });
- 
+
         var addressesR = new g.Layer( {
           table: 'addressesR',
-          schema: 
+          schema:
             new g.driver.SchemaMixin( {
               id       : { type: 'id' },
               personId : { type: 'id', required: true, searchable: true },
-              configId : { type: 'id', required: false }, 
+              configId : { type: 'id', required: false },
               street   : { type: 'string', searchable: true },
               city     : { type: 'string', searchable: true },
             }),
@@ -960,18 +960,18 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           positionField: 'position',
           positionBase: [ 'personId' ],
           nested: [
-            { 
+            {
               layer: 'configR',
               type: 'lookup',
               localField: 'configId',
               layerField: 'id',
             },
 
-           { 
+           {
               layer: 'peopleR',
               type: 'lookup',
               localField: 'personId',
-              layerField: 'id', 
+              layerField: 'id',
             },
 
           ]
@@ -998,7 +998,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
           [ V ] Insert normal record with lookup relationship (peopleR pointing to configR)
           [ V ] Insert record with 1:n relationship (addressesR child of a peopleR)
           [ V ] Insert record with 1:n relationship and a lookup (addressesR child of a peopleR and with a configId)
-                    
+
           UPDATING/DELETING
           -----------------
 
@@ -1014,7 +1014,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
 
         */
-       
+
         function prepareGround( cb ){
 
           async.eachSeries(
@@ -1035,7 +1035,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
           console.log("INITIALISING LAYERS..." );
           g.Layer.init();
- 
+
           // Insert normal record (configR)
 
           function insertFirstConfigRecord( cb ){
@@ -1055,7 +1055,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                 configR.select( { },  function( err, results, total ){
                   test.ifError( err ); if( err ) return test.done();
-    
+
                   test.equal( total, 1 );
                   compareCollections( test, [ data.c1 ], results );
 
@@ -1063,7 +1063,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 });
               });
             });
-          }; 
+          };
 
           function insertSecondConfigRecord( cb ){
 
@@ -1082,7 +1082,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                 configR.select( { },  function( err, results, total ){
                   test.ifError( err ); if( err ) return test.done();
-    
+
                   test.equal( total, 2 );
                   compareCollections( test, [ data.c1, data.c2 ], results );
 
@@ -1090,9 +1090,9 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 });
               });
             });
-          }; 
+          };
 
- 
+
 
           function insertFirstPerson( cb ){
 
@@ -1114,7 +1114,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                 peopleR.select( { },  { children: true }, function( err, results, total ){
                   test.ifError( err ); if( err ) return test.done();
-   
+
                   // Only one result came back
                   test.equal( total, 1 );
 
@@ -1123,16 +1123,16 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                   // Check that configId and addressesR are there and are correct
                   compareItems( test, singleResult._children.configId, data.c1 );
                   test.deepEqual( singleResult._children.addressesR, [] );
-                  
+
                   // Check that results EXCLUDING children are correct
-                  delete singleResult._children;  
+                  delete singleResult._children;
                   compareItems( test, results[ 0 ], data.p1 );
 
                   cb( null );
                 });
               });
             });
-          }; 
+          };
 
           function insertFirstAddress( cb ){
 
@@ -1154,7 +1154,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                 addressesR.select( { },  { children: true }, function( err, results, total ){
                   test.ifError( err ); if( err ) return test.done();
-   
+
                   // Only one result came back
                   test.equal( total, 1 );
 
@@ -1163,16 +1163,16 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                   // Check that configId and addressesR are there and are correct
                   compareItems( test, singleResult._children.configId, data.c1 );
                   compareItems( test, singleResult._children.personId, data.p1 );
-                  
+
                   // Check that results EXCLUDING children are correct
-                  delete singleResult._children;  
+                  delete singleResult._children;
                   compareItems( test, singleResult, data.a1 );
 
 
                   // CHECKING PEOPLE (the address must be added as a child record)
                   peopleR.select( { },  { children: true }, function( err, results, total ){
                     test.ifError( err ); if( err ) return test.done();
-   
+
                     // Only one result came back
                     test.equal( total, 1 );
 
@@ -1191,7 +1191,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 });
               });
             });
-          }; 
+          };
 
           function insertSecondAddress( cb ){
 
@@ -1210,23 +1210,23 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                 addressesR.select( { },  { children: true }, function( err, results, total ){
                   test.ifError( err ); if( err ) return test.done();
-   
+
                   // Only one result came back
                   test.equal( total, 2 );
 
                   // Check that personId is correct in both cases
                   compareItems( test, results[ 0 ]._children.personId, data.p1 );
                   compareItems( test, results[ 1 ]._children.personId, data.p1 );
-                  
+
                   // Check that results EXCLUDING children are correct
-                  delete results[ 0 ]._children;  
-                  delete results[ 1 ]._children;  
+                  delete results[ 0 ]._children;
+                  delete results[ 1 ]._children;
                   compareCollections( test, [ data.a1, data.a2 ], results );
 
                   // CHECKING PEOPLE (the address must be added as a child record)
                   peopleR.select( { },  { children: true }, function( err, results, total ){
                     test.ifError( err ); if( err ) return test.done();
-   
+
                     // Only one result came back
                     test.equal( total, 1 );
 
@@ -1268,7 +1268,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                 peopleR.select( { conditions: { type: 'eq', args: [ 'name', 'Chiara' ] } },  { children: true }, function( err, results, total ){
                   test.ifError( err ); if( err ) return test.done();
-   
+
                   // Only one result came back
                   test.equal( total, 1 );
 
@@ -1277,16 +1277,16 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                   // Check that configId and addressesR are there and are correct
                   compareItems( test, singleResult._children.configId, data.c2 );
                   test.deepEqual( singleResult._children.addressesR, [] );
-                  
+
                   // Check that results EXCLUDING children are correct
-                  delete singleResult._children;  
+                  delete singleResult._children;
                   compareItems( test, results[ 0 ], data.p2 );
 
                   cb( null );
                 });
               });
             });
-          }; 
+          };
 
 
           function insertThirdPerson( cb ){
@@ -1309,7 +1309,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                 peopleR.select( { conditions: { type: 'eq', args: [ 'name', 'Sara'  ]  } },  { children: true }, function( err, results, total ){
                   test.ifError( err ); if( err ) return test.done();
-   
+
                   // Only one result came back
                   test.equal( total, 1 );
 
@@ -1318,16 +1318,16 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                   // Check that configId and addressesR are there and are correct
                   compareItems( test, singleResult._children.configId, data.c2 );
                   test.deepEqual( singleResult._children.addressesR, [] );
-                  
+
                   // Check that results EXCLUDING children are correct
-                  delete singleResult._children;  
+                  delete singleResult._children;
                   compareItems( test, results[ 0 ], data.p3 );
 
                   cb( null );
                 });
               });
             });
-          }; 
+          };
 
           function insertThirdAddress( cb ){
 
@@ -1349,7 +1349,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
                 addressesR.select( { conditions: { type: 'eq', args: [ 'street', 'ivermey'  ] } },  { children: true }, function( err, results, total ){
                   test.ifError( err ); if( err ) return test.done();
-   
+
                   // Only one result came back
                   test.equal( total, 1 );
 
@@ -1358,16 +1358,16 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                   // Check that configId and addressesR are there and are correct
                   compareItems( test, singleResult._children.configId, data.c2 );
                   compareItems( test, singleResult._children.personId, data.p2 );
-                  
+
                   // Check that results EXCLUDING children are correct
-                  delete singleResult._children;  
+                  delete singleResult._children;
                   compareItems( test, singleResult, data.a3 );
 
 
                   // CHECKING PEOPLE (the address must be added as a child record)
                   peopleR.select( { conditions: { type: 'eq', args: [ 'name', 'Chiara'  ] } }, { children: true }, function( err, results, total ){
                     test.ifError( err ); if( err ) return test.done();
-   
+
                     // Only one result came back
                     test.equal( total, 1 );
 
@@ -1387,7 +1387,7 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                 });
               });
             });
-          }; 
+          };
 
           function updateSingleConfig( cb ){
 
@@ -1422,8 +1422,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     default:
-                     test.ok( false, "Name not recognised?" ); 
-                    break;                    
+                     test.ok( false, "Name not recognised?" );
+                    break;
                   }
                 });
 
@@ -1445,8 +1445,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                       break;
 
                       default:
-                       test.ok( false, "Street not recognised?" ); 
-                      break;                    
+                       test.ok( false, "Street not recognised?" );
+                      break;
                     }
                   });
 
@@ -1462,8 +1462,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             console.log("Running updateMultipleConfig...");
 
-            configR.update( { type: 'eq', args: [ 'configField', "C2 - Config Field CHANGED" ] }, { configField: 'C2 - Config Field CHANGED AGAIN', 
-              configValue: 'C2 - Config Value CHANGED AGAIN' 
+            configR.update( { type: 'eq', args: [ 'configField', "C2 - Config Field CHANGED" ] }, { configField: 'C2 - Config Field CHANGED AGAIN',
+              configValue: 'C2 - Config Value CHANGED AGAIN'
             }, { multi: true }, function( err ){
 
               test.ifError( err ); if( err ) return test.done();
@@ -1492,8 +1492,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     default:
-                     test.ok( false, "Name not recognised?" ); 
-                    break;                    
+                     test.ok( false, "Name not recognised?" );
+                    break;
                   }
                 });
 
@@ -1515,8 +1515,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                       break;
 
                       default:
-                       test.ok( false, "Street not recognised?" ); 
-                      break;                    
+                       test.ok( false, "Street not recognised?" );
+                      break;
                     }
                   });
 
@@ -1565,8 +1565,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     default:
-                     test.ok( false, "Name not recognised?" ); 
-                    break;                    
+                     test.ok( false, "Name not recognised?" );
+                    break;
                   }
                 });
 
@@ -1643,8 +1643,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     default:
-                     test.ok( false, "Name not recognised?" ); 
-                    break;                    
+                     test.ok( false, "Name not recognised?" );
+                    break;
                   }
                 });
 
@@ -1687,8 +1687,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     default:
-                     test.ok( false, "Name not recognised?" ); 
-                    break;                    
+                     test.ok( false, "Name not recognised?" );
+                    break;
                   }
                 });
 
@@ -1711,8 +1711,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                       break;
 
                       default:
-                       test.ok( false, "Street not recognised?", address.street ); 
-                      break;                    
+                       test.ok( false, "Street not recognised?", address.street );
+                      break;
                     }
                   });
 
@@ -1753,8 +1753,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     default:
-                     test.ok( false, "Name not recognised?" ); 
-                    break;                    
+                     test.ok( false, "Name not recognised?" );
+                    break;
                   }
                 });
 
@@ -1778,8 +1778,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                       break;
 
                       default:
-                       test.ok( false, "Street not recognised?" ); 
-                      break;                    
+                       test.ok( false, "Street not recognised?" );
+                      break;
                     }
                   });
 
@@ -1819,8 +1819,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     default:
-                     test.ok( false, "Name not recognised?" ); 
-                    break;                    
+                     test.ok( false, "Name not recognised?" );
+                    break;
                   }
                 });
 
@@ -1861,8 +1861,8 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
                     break;
 
                     default:
-                     test.ok( false, "Name not recognised?" ); 
-                    break;                    
+                     test.ok( false, "Name not recognised?" );
+                    break;
                   }
                 });
 
@@ -1876,10 +1876,10 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
             });
           };
 
- 
-          async.series( [ 
 
-            insertFirstConfigRecord, 
+          async.series( [
+
+            insertFirstConfigRecord,
             insertSecondConfigRecord,
             insertFirstPerson,
             insertFirstAddress,
@@ -1903,13 +1903,13 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
             test.done();
           });
-        });  
+        });
       });
     },
   }
 
   if( typeof( makeExtraTests ) === 'function' ){
-    
+
     // Copy tests over
     var extraTests = makeExtraTests( g );
     for( var k in extraTests ){
@@ -1921,5 +1921,3 @@ exports.get = function( getDbInfo, closeDb, makeExtraTests ){
 
   return tests;
 }
-
-
