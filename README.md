@@ -36,7 +36,7 @@ At the moment, here is the list of database-specific adapters:
 
 # Note: "SimpleDbLayer is not an ORM"
 
-SimpleDbLayer is exactly what it says: a (thin) database layer. Most of the other database libraries (such as the excellent [Waterline](https://github.com/balderdashy/waterline)) work in such a way that they define an "Object type" (call it a model, or constructor function) and create objects of that "type": 
+SimpleDbLayer is exactly what it says: a (thin) database layer. Most of the other database libraries (such as the excellent [Waterline](https://github.com/balderdashy/waterline)) work in such a way that they define an "Object type" (call it a model, or constructor function) and create objects of that "type":
 
     // This is NOT how SimpleDbLayer works
     var User = Waterline.Collection.extend({ name: { type: 'string' } } );
@@ -79,7 +79,7 @@ For MongoDB, you can use Mongo's connect call:
 
     mongo.MongoClient.connect( 'mongodb://localhost/hotplate', {}, function( err, db ){
      // db exists here
-    }; 
+    };
 
 # Make up your DB Layer class: mixins
 
@@ -145,7 +145,7 @@ Since the `id` field was set as `isProperty`, it will automatically be set as bo
 
 ## Note on prototype parameters and the constructor parameter
 
-When you actually create the object with `new`, you pass an object to the constructor: `var people = new DbLayer( { /*...this is an object with the constructor's parameters...*/ });`. 
+When you actually create the object with `new`, you pass an object to the constructor: `var people = new DbLayer( { /*...this is an object with the constructor's parameters...*/ });`.
 
 Normally, you would define at least `table`, `schema` and `idProperty` (the required attributes every object needs to work).
 
@@ -171,7 +171,7 @@ Any object created with this constructor will automatically have the attribute `
         table: 'rocks',
         schema: ...
       });
-      // rocks.idProperty (an object's own attribute) is 'weirdId',  
+      // rocks.idProperty (an object's own attribute) is 'weirdId',
 
 This means that you can create a constructor with the most common attributes, and only pass the absolute minimum to the constructor.
 
@@ -202,7 +202,7 @@ The `insert` and `update` operations will trigger validation against the schema.
 
 The variable `errorsArray` is an array of objects, where each object has `field` and `message` defined. For example:
 
-    [ { field: 'age', message: 'Age is invalid' }, { field: 'name', message: 'Field is required: name' } ] 
+    [ { field: 'age', message: 'Age is invalid' }, { field: 'name', message: 'Field is required: name' } ]
 
 You can set the constructor used to create the error objects by passing a `SchemaError` parameter when you define the layer:
 
@@ -224,7 +224,7 @@ Here is a full list of options that affect the behaviour of SimpleDbLayer object
 * `idProperty`. Required. No default. The property representing the record's ID.
 * `hardLimitOnQueries`. Defaults to `0` (no limit). The maximum number of objects returned by non-cursor queries.
 * `SchemaError`. Defaults to `Error`. The constructor for `Error` objects.
-* `strictSchemaOnFetch`. Defaults to `true`. Every fethed record is validated against the schema. If this is `false`, schema errors will be ignored. If `true`, a schema error will generate an error. This is important if you decide to add a required field to your schema, but don't want to update the actual database. 
+* `strictSchemaOnFetch`. Defaults to `true`. Every fethed record is validated against the schema. If this is `false`, schema errors will be ignored. If `true`, a schema error will generate an error. This is important if you decide to add a required field to your schema, but don't want to update the actual database.
 
 ## Advanced properties
 
@@ -234,14 +234,14 @@ These attributes are explained later in the documentation.
 * `positionBase`. Defaults to `[]`. The list of key fields which will `group` positioning
 * `fetchChildrenByDefault`. Defaults to `false`; If true, queries returning records will return children by default.
 * `nested`. Defaults to `[]`. The 'children' tables for in-table joints.
-  
+
 # Running queries
 
 ## Querying: `insert()`
 
 To insert data into your table:
 
-    people.insert( { 
+    people.insert( {
       id: 1,
       name: 'Tony',
       surname: 'Mobily',
@@ -332,7 +332,7 @@ The callback is called with parameter `cursor` (the returned cursor), `total` (t
 
 ## Using the cursor
 
-The `cursor` object has the methods `each()`, `next()` and `rewind()`. 
+The `cursor` object has the methods `each()`, `next()` and `rewind()`.
 
 ### cursor.each( iterator, cb )
 
@@ -381,11 +381,11 @@ Using `each()` is the most convenient way to use a cursor.
 
 ### cursor.next( cb )
 
-`next()` will call the passed callback `cb()` with the next available record, or `null` for the last fetched record. 
+`next()` will call the passed callback `cb()` with the next available record, or `null` for the last fetched record.
 
 ### cursor.rewind()
 
-`rewind()` will bring the cursor back to the beginning of the returned dataset. You can use `rewind()` within `cursor.each()`, although you run the risk of entering an infinite loop. 
+`rewind()` will bring the cursor back to the beginning of the returned dataset. You can use `rewind()` within `cursor.each()`, although you run the risk of entering an infinite loop.
 
 ## Filtering
 
@@ -401,7 +401,7 @@ Note that while the parameter passed to `select()` includes `conditions` `ranges
 
 A possible filtering parameter could be:
 
-    var searchFilter = {   
+    var searchFilter = {
       ranges: {
         from: 3,
         to: 10
@@ -458,13 +458,13 @@ An example could be:
           args: [ 'name', 'to' ]
         },
 
-        { 
+        {
           type: 'or',
           args: [
             {
               type: 'gt',
               args: [ 'age', 30 ]
-            },            
+            },
             {
               type: 'lt',
               args: [ 'age', 10 ]
@@ -528,8 +528,8 @@ You can now define a layer as "child" of another one:
       nested: [
         {
           type: 'lookup',
-          localField: 'personId' 
-          layer: people,          
+          localField: 'personId'
+          layer: people,
           layerField: 'id',
         }
       ],
@@ -537,7 +537,7 @@ You can now define a layer as "child" of another one:
 
     SimpleDbLayer.init(); // <--- IMPORTANT!
 
-**It's absolutely crucial that you run `SimpleDbLayer.init()` before running queries if you have nested layers.** 
+**It's absolutely crucial that you run `SimpleDbLayer.init()` before running queries if you have nested layers.**
 
 Whenever you load a record from the `people` table, you will also get a `_children` attribute for that object that will include all children data. `lookup`s will become one single object, whereas `multiple`s will become array of objects. Note: children are always loaded into `_children`, which cannot be changed. This is to keep things sane code-wise and data-wise.
 
@@ -588,7 +588,7 @@ The fact that two tables are joined means that you can run queries on children r
 
 For example, you can run a query like this:
 
-    
+
     var conditions = {
       type: 'and',
       args: [
@@ -656,13 +656,13 @@ Here is a practical example of what happens when adding data with nested tables:
     function addEmails( cb ){
 
       var opt = { children: true };
-  
+
       emails.insert( { id: 1, personId: 1, address: 'tonymobily@gmail.com' }, opt, function( err, tonyEmail1 ){
         if( err ) return cb( err );
-    
+
         emails.insert( { id: 2, personId: 1, address: 'merc@mobily1.com' }, opt, function( err, tonyEmail2 ){
           if( err ) return cb( err );
-        
+
           emails.insert( { id: 3, personId: 2, address: 'chiaramobily@gmail.com' }, opt, function( err, chiaraEmail1 ){
             if( err ) return cb( err );
 
@@ -676,7 +676,7 @@ Here is a practical example of what happens when adding data with nested tables:
     function fetchTony( cb ){
 
       var opt = { children: true };
-  
+
       emails.select( { conditions: { type: 'eq', args: [ 'id', 1 ] } }, opt, function( err, data ){
         if( err ) return cb( err );
 
@@ -717,13 +717,13 @@ Here is a practical example of what happens when adding data with nested tables:
         }
 
         recordSara is:
-        { 
+        {
           id: 3,
           name: 'Sara',
           surname: 'Fabbietti',
           age: 15,
-          _children: { emails: [] } 
-        }    
+          _children: { emails: [] }
+        }
         */
 
         addEmails( function( err, tonyEmail1, tonyEmail2, chiaraEmail1 ){
@@ -735,8 +735,8 @@ Here is a practical example of what happens when adding data with nested tables:
           { id: 1,
             personId: 1,
             address: 'tonymobily@gmail.com',
-            _children: 
-             { personId: 
+            _children:
+             { personId:
                 { id: 1,
                   name: 'Tony',
                   surname: 'Mobily',
@@ -752,8 +752,8 @@ Here is a practical example of what happens when adding data with nested tables:
           { id: 2,
             personId: 1,
             address: 'merc@mobily1.com',
-            _children: 
-             { personId: 
+            _children:
+             { personId:
                 { age: 37,
                   id: 1,
                   name: 'Tony',
@@ -769,16 +769,16 @@ Here is a practical example of what happens when adding data with nested tables:
           { id: 3,
             personId: 2,
             address: 'chiaramobily@gmail.com',
-            _children: 
-             { personId: 
+            _children:
+             { personId:
                 { id: 2,
                   name: 'Chiara',
                   surname: 'Mobily',
                   age: 25,
                   __uc__surname: 'MOBILY',
-                  _children: {} 
-                } 
-              } 
+                  _children: {}
+                }
+              }
           }
 
           Note that each email address has an entry in _children called personId,
@@ -796,8 +796,8 @@ Here is a practical example of what happens when adding data with nested tables:
               name: 'Tony',
               surname: 'Tobily',
               age: 37,
-              _children: 
-               { emails: 
+              _children:
+               { emails:
                   [ { id: 1,
                       personId: 1,
                       address: 'tonymobily@gmail.com',
@@ -805,10 +805,10 @@ Here is a practical example of what happens when adding data with nested tables:
                     { id: 2,
                       personId: 1,
                       address: 'merc@mobily1.com',
-                      _children: {} 
-                    } 
-                  ] 
-                } 
+                      _children: {}
+                    }
+                  ]
+                }
             }
             */
 
@@ -827,16 +827,16 @@ Here is a practical example of what happens when adding data with nested tables:
                   name: 'Tony',
                   surname: 'Tobily',
                   age: 37,
-                  _children: 
-                   { emails: 
-                      [ 
+                  _children:
+                   { emails:
+                      [
                         { id: 2,
                           personId: 1,
                           address: 'merc@mobily1.com',
-                          _children: {} 
-                        } 
-                      ] 
-                    } 
+                          _children: {}
+                        }
+                      ]
+                    }
                 }
                 */
 
@@ -963,7 +963,7 @@ To reposition a record, just run `reposition`:
       // ...
     });
 
-The call `reposition( record, where, beforeId )` will take the following parameters: 
+The call `reposition( record, where, beforeId )` will take the following parameters:
 
 * `record`. This is the record that will be repositioned.
 * `where`. It can be `start`, `end`, or `before`.
@@ -1151,7 +1151,7 @@ To define custom indexes that cannot be covered with the options above, or to pe
               // All good, return!
               callback( null );
             });
-          }), 
+          }),
         });
 
       },
@@ -1163,7 +1163,7 @@ To define custom indexes that cannot be covered with the options above, or to pe
 
 # Class-level functions
 
-Each constructor that inherits from SimpleDbLayer has some "class functions" available. The functions are actially copied, father to descendant, by simpleDeclare. 
+Each constructor that inherits from SimpleDbLayer has some "class functions" available. The functions are actially copied, father to descendant, by simpleDeclare.
 
 ## Layer registry functions
 
@@ -1171,7 +1171,7 @@ SimpleDbLayer keeps a registry of layers (indexed by table name, which is unique
 
 This mechanism is very handy when you want to define your layers objects in a module within your program, and then want to access those variables anywhere in your program.
 
-The registry is also used by SimpleDbLayer itself when you reference a nested layer with a string rather than a layer object (the layer object is looked by table name). 
+The registry is also used by SimpleDbLayer itself when you reference a nested layer with a string rather than a layer object (the layer object is looked by table name).
 
 Here are the registry functions:
 
@@ -1180,7 +1180,7 @@ Here are the registry functions:
 The function `DbLayer.getLayer( table )` will return a single layer from the layer registry:
 
     emails = DbLayer.getLayer( 'emails' )
-    // Layer variable 'email' is now ready to be used to insert, delete, etc. 
+    // Layer variable 'email' is now ready to be used to insert, delete, etc.
 
 ### DbLayer.getAllLayers()
 
@@ -1200,12 +1200,10 @@ SimpleDbLayer provides two class-level functions that affect indexes for all the
 This function does what it says: it generates all schema indexes for every layer defined in the registry. Parameters:
 
 * `options`. Any options that will be passed to each `generateSchemaIndexes()` call. Especially useful when you want to pass `{ background: true }`.
-* `callback`. The callback that will be called. 
+* `callback`. The callback that will be called.
 
 ### `SimpleDbLayer.dropAllIndexesAllLayers( callback)`.
 
 This function drops all indexes for every layer defined in the registry. Parameters:
 
-* `callback`. The callback that will be called. 
-
-
+* `callback`. The callback that will be called.
