@@ -318,6 +318,9 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
   parentTablesArray: [],
   _indexGroups: { },
 
+  allowEmptyQueryOnUpdate: false,
+  allowEmptyQueryOnDelete: false,
+
   _searchableHash: {},
   _searchableHashSchema: {},
 
@@ -340,7 +343,6 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     self._indexGroups = { __main: { indexes: {}, indexBase: self.indexBase } };
 
     //console.log("CONSTRUCTING: ", self.table, "WHICH IS:", self );
-
 
     // Make sure 'table', 'schema', 'db' exist in the object *somehow*
     [ 'table', 'schema', 'idProperty', 'db' ].forEach( function( k ){
@@ -617,7 +619,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     var conditions = {};
     conditions[ this.idProperty ] = id;
 
-    this.selectByHash( { conditions: conditions }, options, function( err, docs ){
+    this.selectByHash( conditions, options, function( err, docs ){
       if( err ) return cb( err );
 
       if( ! docs.length ) return cb( null, null );
@@ -625,11 +627,17 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     });
   },
 
-  selectByHash: function( filters, options, cb ){
+  selectByHash: function( conditions, options, cb ){
 
-    //console.log("SELECTHASH: ", filters.conditions );
+    var warning;
+    if( conditions.sort ){ warning = true; options.sort = conditions.sort; }
+    if( conditions.ranges){ warning = true; options.ranges = conditions.ranges; }
+    if( conditions.conditions ){ warning = true; conditions = conditions.conditions; }
+    if( warning ){
+      var caller_line = (new Error).stack.split("\n")[2]
+      console.warn("WARNING (selectByHash): Using the old-style API for select, parameters were normalised:", caller_line );
+    }
     var o;
-    var conditions = filters.conditions || {};
     var keys = Object.keys( conditions );
 
     if( keys.length === 0 ){
@@ -645,11 +653,11 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     }
 
     //console.log("CONVERTED CONDITIONS: ", require('util').inspect( o, { depth: 10 }  ) );
-    this.select( { conditions: o, ranges: filters.ranges, sort: filters.sort }, options, cb );
+    this.select( o, options, cb );
   },
 
 
-  select: function( filters, options, cb ){
+  select: function( conditions, options, cb ){
 
     // Usual drill
     if( typeof( cb ) === 'undefined' ){
@@ -688,7 +696,6 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
 
   updateByHash: function( conditions, updateObject, options, cb ){
 
-    //console.log("SELECTHASH: ", filters.conditions );
     var o;
     var keys = Object.keys( conditions );
 
@@ -709,7 +716,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
 
 
 
-  update: function( filters, record, options, cb ){
+  update: function( conditions, record, options, cb ){
 
     // Usual drill
     if( typeof( cb ) === 'undefined' ){
@@ -735,7 +742,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     cb( null, record );
   },
 
-  deleteById: function( id, updateObject, options, cb ){
+  deleteById: function( id, options, cb ){
 
     if( typeof( options ) === 'function' ){
       cb = options;
@@ -756,7 +763,6 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
 
   deleteByHash: function( conditions, options, cb ){
 
-    //console.log("SELECTHASH: ", filters.conditions );
     var o;
     var keys = Object.keys( conditions );
 
@@ -777,7 +783,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
   },
 
 
-  'delete': function( filters, options, cb ){
+  'delete': function( conditions, options, cb ){
 
     // Usual drill
     if( typeof( cb ) === 'undefined' ){
