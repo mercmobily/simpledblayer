@@ -18,14 +18,9 @@ Features:
 Limitations:
 
 * It doesn't manage connections. You will have to create a connection to the database and pass it to it. This is due to the module's philosophy of getting in the way as little as possible.
-* `update` and `delete` statements don't accept `sort` and `range` (they will either affect one record, or all of them). This is mainly to make sure that pre-caching of children (join/lookup) tables is workable.
 * It doesn't implement Models constructors and object types as many other ORMs do (mainly because SimpleDbLayer is _not_ an ORM, but a thin layer around databases).
 
 Once again, all these features (and limitations) are tailored around the fact that SimpleDbLayer is a module that enables [JsonRestStores](https://github.com/mercmobily/JsonRestStores) to have several (thin) database layers.
-
-
-DOCUMENTATION TODO: Specify that SimpleDbLayer inherits from EventEmitterCollector, and emits collecting events before and after operations. This allows field manipulation on the fly.
-
 
 # Database-specific adapters
 
@@ -105,13 +100,13 @@ In order to use this library, you will need to _mixin_ the basic SimpleDbLayer c
 
 **Please note:** from now on, I will assume that any code referenced in this guide will be surrounded by the code above.
 
-THe critical line is this:
+The critical line is this:
 
-      var DbLayer = SimpleDbLayer.extend( SimpleDbLayerMongo, { db: db } );
+    var DbLayer = SimpleDbLayer.extend( SimpleDbLayerMongo, { db: db } );
 
 Which can also be written as:
 
-      var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
+    var DbLayer = declare( [ SimpleDbLayer, SimpleDbLayerMongo ], { db: db } );
 
 In this case, you need to also require `simpledeclare` like this: `var declare = require('simpledeclare');`. For first-class, close-to-metal OOP in Javascript have a look at [simpledeclare](https://github.com/mercmobily/simpleDeclare), which is what SimpleDbLayer uses.
 
@@ -213,6 +208,12 @@ As always, you can also define a the SchemaError constructor when creating the o
     var DbLayer = SimpleDbLayer.extend( SimpleDbLayerMongo, { db: db } );
     var people = new DbLayer( { /* ...layer parameters..., */ SchemaError: SomeErrorConstructor } );
 
+## allowEmptyQueryOnUpdate and allowEmptyQueryOnDelete
+
+These attributes, false by default, define whether update and delete queries will be allowed if they have an empty query. This is mainly to prevent the layer to accidentally update or delete records if the query is mistakenly empty.
+
+Since `multi` is false by default, having empty query conditions will only affect one record, the first one found, which will make debugging even harder.
+
 # Full list of options for SimpleDbLayer
 
 Here is a full list of options that affect the behaviour of SimpleDbLayer objects. Please keep in mind that all of them can me defined either in the constructor's prototype, or as attribute of the constructor's parameter oject.
@@ -225,6 +226,7 @@ Here is a full list of options that affect the behaviour of SimpleDbLayer object
 * `hardLimitOnQueries`. Defaults to `0` (no limit). The maximum number of objects returned by non-cursor queries.
 * `SchemaError`. Defaults to `Error`. The constructor for `Error` objects.
 * `strictSchemaOnFetch`. Defaults to `true`. Every fethed record is validated against the schema. If this is `false`, schema errors will be ignored. If `true`, a schema error will generate an error. This is important if you decide to add a required field to your schema, but don't want to update the actual database.
+* `allowEmptyQueryOnUpdate` and `allowEmptyQueryOnDelete`
 
 ## Advanced properties
 
@@ -248,22 +250,23 @@ To insert data into your table:
       age: 37 },
       , function( err, record ){
 
-
 The second parameter is optional. If you pass it:
 
 * If `children` is `true`, the returned record will also include its children. Default is `false`.
 * If `skipValidation` is `true`, then the validation of the data against the schema will be skipped. Default is `false`.
 * `If `position` is defined, and table has a `positionField` element, then the record will be placed in the designated spot. The `position` element should be an object with `where` and optionally `beforeId`. See the [Repositioning section](#Repositioning) section in the documentation for details.
 
-# Querying: `update()`
+# Querying: `update( conditions, changes, [options], cb )`
 
 This is a simple update:
 
     people.update(
-      { name: 'startsWith', args: [ 'surname', 'mob' ] },
-      { surname: 'Tobily' },
-      { deleteUnsetFields: false, multi: true },
+      { name: 'startsWith', args: [ 'surname', 'mob' ] }, // The conditions
+      { surname: 'Tobily' }, // Change to be made
+      { deleteUnsetFields: false, multi: true }, // Extra options
       function( err, howMany, record ){
+
+Please note that the format of the `conditions` parameter is a query, and its format is explained later in the documentation.
 
 The callback will have `howMany` set as the number of changed records. The `record` parameter is not always there: if `multi` was set as `true`, then `record` is `undefined`. If `multi` was set as `false` (the default), `record` will be either the changed record (if one was updated -- in this case `num` is 1) or `null` (if nothing was updated -- in this case `num` is 0).
 
@@ -273,16 +276,16 @@ The third parameter, here set as `{ deleteUnsetFields: false, multi: true }`, is
 * `deleteUnsetFields`. If set to `true`, then any field that is not defined in the update object will be set as empty in the database. Basically, it's a "full record update" regardless of what was passed. Validation will fail if a field is required by the schema and it's not set while this option is `true`. Default: `false`.
 * `skipValidation`. If set to `true`, then the schema validation of the data against the schema will be skipped. Casting will still happen. Default: `false`.
 
-Please note how the filter is an object that defines how data will be filtered. Check the `select` section to see how the filter works.
-
-# Querying: `delete()`
+# Querying: `delete( conditions, [options], cb )`
 
 This is a simple delete:
 
     people.delete(
-      { type: 'gt', args: [ 'age', 28 ] },
-      { multi: true },
+      { type: 'gt', args: [ 'age', 28 ] }, // The conditions
+      { multi: true }, // The options
       function( err, howMany, record ){
+
+The format of the `conditions` parameter is a query, and its format is explained later in the documentation.
 
 The callback will have `howMany` set as the number of deleted records.  The `record` parameter is not always there: if `multi` was set as `true`, then `record` is `undefined`. If `multi` was set as `false` (the default), `record` will be either the deleted record (if one was deleted -- in this case `num` is 1) or `null` (if nothing was deleted -- in this case `num` is 0).
 
@@ -290,7 +293,7 @@ The second parameter, here set as `{ multi: true }`, is optional. If you pass it
 
 * If `multi` is set to `true`, all records matching the search will be deleted. Otherwise, only one record will be deleted. Default: `false`.
 
-# Querying: `select()`
+# Querying: `select( conditions, [options], cb )`
 
 SimpleDbLayer supports both normal and cursor-based queries, depending on the `useCursor` parameter.
 
@@ -299,16 +302,19 @@ SimpleDbLayer supports both normal and cursor-based queries, depending on the `u
 For normal queries:
 
     people.select(
-      {},
-      { useCursor: false , delete: false, skipHardLimitOnQueries: false },
+      {}, // Conditions
+      { useCursor: false , delete: false, skipHardLimitOnQueries: false }, // options
       function( err, data, total, grandTotal ){
 
-The first parameter is an object representing the query (more about this later).
+The format of the `conditions` parameter is a query, and its format is explained later in the documentation.
+
 The second parameter is optional. If you pass it:
 
 * `useCursor`. If set to `true`, the function will call the call the callback with a cursor rahter than the data. Default: `false`.
 * `delete`. If set to `true`, SimpleDbLayer will _delete_ any fetched record. For normal queries, it will delete all records _before_ calling your callback.
 * `skipHardLimitOnQueries`. If set to `true`, SimpleDbLayer will ignore the `hardLimitOnQuery` attribute and will return _all_ fetched data. flag. Remember that if you have a very large data set and do not impose any range limits, non-cursor queries will attempt to place the whole thing in memory and will probably kill your server. Default: `false.`.
+* `ranges`. It's an object that can have the attributes `from`, `to` and `limit` set. All attributes are optional. For example `{ limit: 10 }`.
+* `sort`. It's an object where each key represents the field the sort will apply to. For each key, value can be `-1` (bigger to smaller)  or `1` (smaller to bigger).
 
 The callback is called with parameter `data` (the returned records), `total` (the number of records returned) and `grandTotal` (the _total_ number of records that satisfy the query without taking into consideration the required ranges).
 
@@ -317,9 +323,11 @@ The callback is called with parameter `data` (the returned records), `total` (th
 For cursor queries:
 
     people.select(
-      {},
-      { useCursor: true , delete: false },
+      {}, // conditions
+      { useCursor: true , delete: false }, // options
       function( err, cursor, total, grandTotal ){
+
+The format of the `conditions` parameter is a query, and its format is explained later in the documentation.
 
 The second parameter is optional. If you pass it:
 
@@ -342,7 +350,6 @@ If the iterator calls `done()` with `err` set, then execution will be interrupte
 If the iterator calls `done()` with `err` set to `null`, but with `breakFlag` set to `true`, then execution will be called and `cb()` will be called with `err` set to `null.`
 Here is a typical example of cursor usage:
 
-```javascript
     function cursorExample( done ){
 
       people.select( {}, { children: true, useCursor: true }, function( err, cursor ){
@@ -376,7 +383,7 @@ Here is a typical example of cursor usage:
         );
       });
     }
-````
+
 Using `each()` is the most convenient way to use a cursor.
 
 ### cursor.next( cb )
@@ -387,17 +394,13 @@ Using `each()` is the most convenient way to use a cursor.
 
 `rewind()` will bring the cursor back to the beginning of the returned dataset. You can use `rewind()` within `cursor.each()`, although you run the risk of entering an infinite loop.
 
-## Filtering
+# Conditions
 
-The first parameter in select, which up to this point in the documentation was was left as an empty object, is an object with the following parameters:
+The first parameter of each function is a `conditions` object, which represents a query.
 
-* `conditions`. It's an object including the attribute `type` (a string representing the type of the conditional operation to perform) and `args` (an array containing the parameters to the operation). For example, `{ type: 'startsWith', args: [ 'surname', 'mob' ] },` will filter all record where the field `surname` starts with `mob`.
-* `ranges`. It's an object that can have the attributes `from`, `to` and `limit` set. All attributes are optional. For example `{ limit: 10 }`.
-* `sort`. It's an object where each key represents the field the sort will apply to. For each key, value can be `-1` (bigger to smaller)  or `1` (smaller to bigger).
+`conditions` is an object including the attribute `type` (a string representing the type of the conditional operation to perform) and `args` (an array containing the parameters to the operation). For example, `{ type: 'startsWith', args: [ 'surname', 'mob' ] },` will filter all record where the field `surname` starts with `mob`.
 
 All parameters are optional.
-
-Note that while the parameter passed to `select()` includes `conditions` `ranges`, `sort`, the first parameter passed to `update()` and `delete()` is only passed the `conditions` object. This means that update and delete queries will either affect _all_ records (`multi` is `true`), or _one_ record (`multi` is `false` or not passed).
 
 A possible filtering parameter could be:
 
@@ -428,9 +431,6 @@ A possible filtering parameter could be:
     people.select( searchFilter, function( err, cursor, total, grandTotal ){
       // ...
     });
-
-
-### The `conditions` object
 
 The conditions object can have the following conditional operators (in `type`):
 
@@ -476,7 +476,63 @@ An example could be:
 
 Which means `name startsWith 'to' AND ( age > 30 OR age < 10 )`.
 
+# Simplified queries
 
+The following functions are available as simplified queries.
+
+## Simplified `byId` queries:
+
+* `selectById( id, [options], cb )`
+* `updateById( id, updateObject, [options], cb )`
+* `deleteById( id, [options], cb )`
+
+They work in the exact same way as normal queries. However, rather than accepting a full `conditions` query, they accept an `id`.
+
+## Simplified `byHash` queries:
+
+* `selectByHash( conditionsHash, [options], cb )`
+* `updateByHash( conditionsHash, updateObject, [options], cb )`
+* `deleteByHash( conditionsHash, [options], cb )`
+
+They work in the exact same way as normal queries. However, rather than accepting a full `conditions` query, they accept a hash where each condition must be satisfied. For example `{ name: "Tony", surname: "Mobily" }`.
+
+# Events emitted
+
+Each SimpleDbLayer object is also an EventEmitterCollector. Yes, that's right: not an EventEmitter. The main difference is that rather than being "fire and forget", EventEmitterCollector allows you to actually return something to the firing code.
+Here are the events fired:
+
+* 'preUpdate' (parameters: `conditions`, `updateObject`, `options`)
+* 'preInsert' (parametes: `record`, `options` )
+* 'preDelete' (parametes: `record`, `options` )
+* 'updateOne' (parametes: `fullRecord`, `conditions`, `updateObject`, `options`)
+* 'updateMany' (parametes: `conditions`, `updateObject`, `options`)
+* 'insert' (parametes: `fetchedRecord`, `record`, `options`)
+* 'deleteOne' (parametes: `fetchedRecord`, `conditions`, `options`)
+* 'deleteMany' (parametes: `conditions`, `options`)
+
+In order to catch these events, you can do the following:
+
+    people.onCollect( 'insert', function( fetchedRecord, record, options, done ){
+      console.log("Just inserted:", fetchedRecord );
+      done( null );
+    });
+
+Using the `pre-` events, you can do anything _before_ a the database is changed:
+
+    people.onCollect( 'preInsert', function( record, options, done ){
+
+      // Call an async function that will normalise the address
+      normaliseAddress( record.address, function( err, normalisedAddress ){
+        if( err ) return cb( err );
+
+        record.address = normalisedAddress;
+
+        done( null );
+      });
+    });
+
+
+Unlike normal fire-and-forget events, in this case you can *change* the record before it's inserted into the database.
 
 # Automatic loading of children (joins)
 
@@ -535,7 +591,7 @@ You can now define a layer as "child" of another one:
       ],
     });
 
-    SimpleDbLayer.init(); // <--- IMPORTANT!
+    SimpleDbLayer.init(); // IMPORTANT!
 
 **It's absolutely crucial that you run `SimpleDbLayer.init()` before running queries if you have nested layers.**
 
@@ -550,7 +606,7 @@ If you see carefully, `people` is defined like this:
       nested: [
         {
           type: 'multiple',
-          layer: 'emails', // <-- note: this is a string! Will do a lookup based on the table
+          layer: 'emails', // NOTE: this is a string! Will do a lookup based on the table
           join: { personId: 'id' },
         },
       ]
@@ -602,7 +658,7 @@ For example, you can run a query like this:
         },
       ]
     }
-    people.select( { conditions: conditions }, { children: true }, function( err, data ){
+    people.select( conditions, { children: true }, function( err, data ){
       if( err ) return cb( err );
 
       console.log("Data: ", data );
@@ -677,7 +733,7 @@ Here is a practical example of what happens when adding data with nested tables:
 
       var opt = { children: true };
 
-      emails.select( { conditions: { type: 'eq', args: [ 'id', 1 ] } }, opt, function( err, data ){
+      emails.select( { type: 'eq', args: [ 'id', 1 ] }, opt, function( err, data ){
         if( err ) return cb( err );
 
         cb( null, data[ 0 ]);
