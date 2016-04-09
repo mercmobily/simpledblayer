@@ -7,11 +7,11 @@
     "mongo"
   ],
   "main": "SimpleDbLayer.js",
-  "version": "0.3.29",
+  "version": "0.3.31",
   "private": false,
   "repository": {
     "type": "git",
-    "url": "https://github.com/mercmobily/simpledblayer"
+    "url": "git+https://github.com/mercmobily/simpledblayer.git"
   },
   "author": {
     "name": "Tony Mobily"
@@ -24,6 +24,8 @@
   },
   "devDependencies": {
     "simpleschema": "0.3.x"
-  }
-
+  },
+  "bugs": {
+    "url": "https://github.com/mercmobily/simpledblayer/issues"
+  },
 }
