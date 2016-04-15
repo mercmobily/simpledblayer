@@ -7,7 +7,7 @@
     "mongo"
   ],
   "main": "SimpleDbLayer.js",
-  "version": "0.3.31",
+  "version": "0.3.32",
   "private": false,
   "repository": {
     "type": "git",
@@ -27,5 +27,5 @@
   },
   "bugs": {
     "url": "https://github.com/mercmobily/simpledblayer/issues"
-  },
+  }
 }
