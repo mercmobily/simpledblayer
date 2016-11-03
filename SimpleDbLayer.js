@@ -489,15 +489,15 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
       }
 
       // Work out subName, depending on the type of the child.
-      // - For multiple 1:n children, the subName can just be the child's table name
+      // - For multiple 1:n children, the subName can just be the child's table name (OR, prop if set)
       // - For single lookups, since there can be more children lookups pointing to the same table,
-      //   the key will need to be the localField name
+      //   the key will need to be the localField name (OR, prop if set)
       // This way, each record will have a list of children with a unique key, which will either
       // lead to a lookup or a multiple relationship.
       var subName;
       switch( childNestedParams.type ){
-        case 'multiple': subName = childLayer.table; break;
-        case 'lookup': subName = childNestedParams.localField; break;
+        case 'multiple': subName = childNestedParams.prop || childLayer.table; break;
+        case 'lookup': subName = childNestedParams.prop || childNestedParams.localField; break;
       }
 
       // Adding this child to the parent
