@@ -638,6 +638,29 @@ For multiple lookup nesting,
 
 The way you read this example is "create a `emails` array in `_children` where including all records in `email` where `emails.personId` is the same as the local `id`". So when you load a person, you will have an attribute in `_children` called `emails` which will contain all of the matching email records.
 
+### Custom property name
+
+You can change the name of the property in `_children` by adding a `prop` parameter to nested:
+
+    nested: [
+      {
+        type: 'lookup',
+        localField: 'userId',
+        store: 'usersPrivateInfo',
+        prop: 'usersPrivateInfo'
+      },
+
+      {
+        type: 'lookup',
+        localField: 'userId',
+        store: 'usersContactInfo',
+        prop: 'usersContactInfo'
+      }
+
+    ],
+
+This proves useful when there is a clash. In this case, the `userId` field is used twice: once to pull information from `usersPrivateInfo`  and again to pull information from `usersContactInfo`.
+
 ## Searching
 
 The fact that two tables are joined means that you can run queries on children records as well as on its "main" records.
