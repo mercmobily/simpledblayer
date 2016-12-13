@@ -234,7 +234,6 @@ These attributes are explained later in the documentation.
 
 * `positionField`. Defaults to `null` (no positioning). The field used by the database engine to keep track of positioning.
 * `positionBase`. Defaults to `[]`. The list of key fields which will `group` positioning
-* `fetchChildrenByDefault`. Defaults to `false`; If true, queries returning records will return children by default.
 * `nested`. Defaults to `[]`. The 'children' tables for in-table joints.
 
 # Running queries
@@ -252,7 +251,7 @@ To insert data into your table:
 
 The second parameter is optional. If you pass it:
 
-* If `children` is `true`, the returned record will also include its children. Default is `false`.
+* If `children` is `false`, the returned record will not include its children. Default is `true`.
 * If `skipValidation` is `true`, then the validation of the data against the schema will be skipped. Default is `false`.
 * `If `position` is defined, and table has a `positionField` element, then the record will be placed in the designated spot. The `position` element should be an object with `where` and optionally `beforeId`. See the [Repositioning section](#Repositioning) section in the documentation for details.
 
@@ -310,6 +309,7 @@ The format of the `conditions` parameter is a query, and its format is explained
 
 The second parameter is optional. If you pass it:
 
+* `children`. if set to `false`, the returned records will not include their children. Default is `true`.
 * `useCursor`. If set to `true`, the function will call the call the callback with a cursor rahter than the data. Default: `false`.
 * `delete`. If set to `true`, SimpleDbLayer will _delete_ any fetched record. For normal queries, it will delete all records _before_ calling your callback.
 * `skipHardLimitOnQueries`. If set to `true`, SimpleDbLayer will ignore the `hardLimitOnQuery` attribute and will return _all_ fetched data. flag. Remember that if you have a very large data set and do not impose any range limits, non-cursor queries will attempt to place the whole thing in memory and will probably kill your server. Default: `false.`.

@@ -309,7 +309,6 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
   extraIndexes: [],
   indexBase: [],
   strictSchemaOnFetch: true,
-  fetchChildrenByDefault: false,
 
   // Fields that will be redefined in constructor, here for aesthetic reasons
   childrenTablesHash: {},
