@@ -628,6 +628,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
 
   selectByHash: function( conditions, options, cb ){
 
+
     var warning;
     if( conditions.sort ){ warning = true; options.sort = conditions.sort; }
     if( conditions.ranges){ warning = true; options.ranges = conditions.ranges; }
@@ -650,6 +651,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
         o.args.push( { type: 'eq', args: [ key, conditions[ key ] ] } );
       });
     }
+
 
     //console.log("CONVERTED CONDITIONS: ", require('util').inspect( o, { depth: 10 }  ) );
     this.select( o, options, cb );
