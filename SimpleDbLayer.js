@@ -383,12 +383,17 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
       if( self.schema.structure[ field ].searchable ) self._makeFieldSearchable( field );
     });
 
+    consolelog("EXTRAINDEXES:", self.extraIndexes );
     // Add the extra indexes as defined in extraIndexes. Note that this won't
     // affect `searchable` -- this is just to add indexes.
     Object.keys( self.extraIndexes ).forEach( function( indexName ) {
       var index = self.extraIndexes[ indexName ];
 
+      consolelog("INDEX NAME:", indexName)
+
       var indexOptions = index.options;
+      consolelog("INDEX OPTIONS:", indexOptions)
+
 
       // Work out the index's keys. This is the same as the passed "keys", but rather than
       // something line `{ workspaceId: 1 }`, it's `{ workspaceId: { direction: 1, entry: { type: 'id' } } }`
@@ -401,6 +406,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
         fields[ fieldName ] = { entry: entry, direction: direction };
       });
       self._indexGroups.__main.indexes[ indexName ] = { extra: true, fields: fields, options: indexOptions };
+      consolelog("Created index:", require('util').inspect( self._indexGroups.__main.indexes[ indexName ], { depth: 10} ) );
     });
 
 /*
