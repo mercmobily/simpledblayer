@@ -1168,11 +1168,18 @@ Imagine that you have a schema so defined:
 
       // Indexes properties
       indexBase: [ 'workspaceId']
+
       extraIndexes: {
-        name: 'nameSurname',
-        options: { },
-        keys   : { name: 1, surname: 1 },
-      },
+        'name_surname': {
+          fields: {
+            name: 1,
+            surname: 1,
+          },
+          options: {
+            unique: true,
+          }
+        }
+      }
 
     });
 
