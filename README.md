@@ -1143,7 +1143,7 @@ In most cases, database engines should at least create the following:
 * If `positionField` is set, then `positionField` will also be indexed (along with its `positionBase`)
 * If `extraIndexes` is set, any index defined there will be created. Since extraIndexes are added last, it can also be used to override existing indexes (as long as the names match).
 
-(Note: for MongoDB, which pre-caches children records within the main records, indexes will be created for the sub-fields as well, voiding indeing of foreign keys whenever possible (although _some_ wastage does happen)).
+Note: for MongoDB, which pre-caches children records within the main records, indexes will be created for the sub-fields as well, voiding indeing of foreign keys whenever possible (although _some_ wastage does happen. It's possible to limit the indexing of subfields by specifying the attribute `onlyIndexJoin: true` in the `join`. 
 
 Imagine that you have a schema so defined:
 

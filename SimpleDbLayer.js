@@ -417,7 +417,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
 
   },
 
-  _makeFieldSearchable: function( entryKey, entryLayer, entryLayerName ){
+  _makeFieldSearchable: function( entryKey, entryLayer, entryLayerName, noIndex ){
 
     var self = this;
 
@@ -444,7 +444,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
       self._indexGroups[ indexGroupName ] = self._indexGroups[ indexGroupName ] || { indexes: {}, indexBase: entryLayer.indexBase };
     }
 
-    self._indexGroups[ indexGroupName ].indexes[ indexName ] = newEntry;
+    if( !noIndex) self._indexGroups[ indexGroupName ].indexes[ indexName ] = newEntry;
     self._searchableHash[ fullName ] = entry;
     self._searchableHashSchema[ fullName ] = entryLayer.schema;
 
@@ -460,6 +460,10 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     consolelog("\nScanning initiated for ", self.table );
 
     self.nested.forEach( function( childNestedParams ){
+
+
+      consolelog("This nested table has onlyIndexJoin?", !!childNestedParams.onlyIndexJoin );
+      var onlyIndexJoin = !!childNestedParams.onlyIndexJoin;
 
       // The parameter childNestedParams.layer is a string. It needs to be
       // converted to a proper table, now that they are all instantiated.
@@ -546,8 +550,17 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
 
         // If entry is searchable, add the field to the _searchableHash
         if( entry.searchable ){
-          consolelog("Field is searchable! So: ", subName + "." + fieldName, "will be searchable in father table" );
-          self._makeFieldSearchable( fieldName, childLayer, subName );
+          consolelog("\nField", fieldName, "is searchable!");
+          //console.log("TEST:", childNestedParams.join, childNestedParams.join[fieldName] );
+          var noIndex = false;
+          if( onlyIndexJoin) {
+            noIndex = true;
+            if( childNestedParams.join && childNestedParams.join[ fieldName ] && ! childNestedParams.join[ fieldName ] ) noIndex = false;
+          }
+
+          consolelog("Noindex is:", noIndex, onlyIndexJoin, childNestedParams.join, childNestedParams.join ? childNestedParams.join[ fieldName ] : 'NOPE' );
+          consolelog("Marking it as searchable. So", subName + "." + fieldName, "will be searchable in father table" );
+          self._makeFieldSearchable( fieldName, childLayer, subName, noIndex );
         }
       });
 
