@@ -621,7 +621,7 @@ var SimpleDbLayer = declare( EventEmitterCollector, {
     saneRanges.skip = ranges.skip ? ranges.skip : 0;
     saneRanges.limit = ranges.limit ?
       ( ranges.limit > hardLimit && ! skipLimit ? hardLimit : ranges.limit ) :
-                       hardLimit === Infinity ? 0 : hardLimit;
+                       hardLimit === Infinity || skipLimit ? 0 : hardLimit;
 
     // Return the sane range
     return saneRanges;
